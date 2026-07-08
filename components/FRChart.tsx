@@ -77,18 +77,20 @@ export function FRChart({ traces, enabledBands }: Props) {
     };
   });
 
-  // Visual colored background shapes for each band
+  // Visual colored horizontal lines for each band sitting at the bottom of the graph
   const bandShapes: any[] = activeBands.map((band) => ({
-    type: "rect",
+    type: "line",
     xref: "x",
     yref: "paper",
     x0: Math.log10(band.freqLow),
     x1: Math.log10(band.freqHigh),
-    y0: 0,
-    y1: 1,
-    fillcolor: band.color,
-    line: { width: 0 },
-    layer: "below",
+    y0: 0.015,
+    y1: 0.015,
+    line: {
+      color: band.color.replace(/[\d.]+\)$/g, '0.8)'), // make color much more opaque
+      width: 10,
+    },
+    layer: "above",
   }));
 
   const allPlotData = [...plotData, ...bandTraces];
