@@ -27,7 +27,7 @@ export function FRChart({ traces, enabledBands }: Props) {
 
   // Compute per-trace dB offset so each curve is centered around 60 dB
   // (mean dB over 1 kHz reference region 900–1100 Hz → offset to 60)
-  const plotData: Plotly.Data[] = visibleTraces.map((t) => {
+  const plotData: any[] = visibleTraces.map((t) => {
     // Find mean in 900–1100 Hz band for relative normalization
     const refPoints = t.normalized.hz
       .map((hz, i) => ({ hz, db: t.normalized.db[i] }))
