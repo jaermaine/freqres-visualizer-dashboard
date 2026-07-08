@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { TraceList } from "./TraceList";
 import { BandToggleGroup } from "./BandToggleGroup";
@@ -88,7 +89,7 @@ export function Sidebar({
         className="flex items-center gap-2 px-4 py-3"
         style={{ borderBottom: "1px solid var(--border-subtle)" }}
       >
-        <span className="text-indigo-400 text-base">〰</span>
+        <Image src="/logo.png" alt="FreqRes Logo" width={20} height={20} className="object-contain" />
         <span className="font-semibold text-sm tracking-tight" style={{ color: "var(--text-primary)" }}>
           FreqRes
         </span>

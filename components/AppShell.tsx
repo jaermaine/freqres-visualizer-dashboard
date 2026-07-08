@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useId } from "react";
+import Image from "next/image";
 import { Sidebar } from "./Sidebar";
 import { FRChart } from "./FRChart";
 import { ImportStatus } from "./HelpPanel";
@@ -137,7 +138,7 @@ export function AppShell() {
         {/* Mobile Header */}
         <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           <div className="flex items-center gap-2">
-            <span className="text-indigo-400 text-base">〰</span>
+            <Image src="/logo.png" alt="FreqRes Logo" width={20} height={20} className="object-contain" />
             <span className="font-semibold text-sm tracking-tight text-[var(--text-primary)]">
               FreqRes
             </span>
