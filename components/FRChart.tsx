@@ -51,28 +51,30 @@ export function FRChart({ traces, enabledBands }: Props) {
 
   const activeBands = PARAMETER_BANDS.filter((b) => enabledBands.has(b.id));
 
-  // Visual colored horizontal bars for each band, dynamically stacked at the top of the graph so they do not overlap
-  const bandShapes: any[] = activeBands.map((band, index) => {
-    const yTop = Y_MAX - (index * 1.5) - 0.2; // Start from 85 dB downwards
-    const yBot = yTop - 1.0; // 1 dB thickness
+  // Parameter bands as thick horizontal traces stacked at the top of the graph
+  const bandLines: any[] = activeBands.map((band, index) => {
+    const yPos = Y_MAX - (index * 1.5) - 0.5; // Stack from 84.5 dB downwards
 
     return {
-      type: "rect",
-      xref: "x",
-      yref: "y", // bind directly to the data axis
-      x0: Math.log10(band.freqLow),
-      x1: Math.log10(band.freqHigh),
-      y0: yBot,
-      y1: yTop,
-      fillcolor: band.color.replace(/[\d.]+\)$/, '0.9)'), // bold solid color
-      line: { width: 0 },
-      layer: "above",
+      x: [band.freqLow, band.freqHigh],
+      y: [yPos, yPos],
+      type: "scatter",
+      mode: "lines",
+      name: band.label,
+      line: {
+        color: band.color.replace(/[\d.]+\)$/, '0.9)'), // bold solid color
+        width: 10,
+      },
+      hoverinfo: "text",
+      hovertemplate: `<b>${band.label}</b><extra></extra>`,
+      showlegend: false, // hide from legend
     };
   });
 
+  const allPlotData = [...plotData, ...bandLines];
+
   const layout: any = {
     showlegend: visibleTraces.length >= 2, // only show legend if at least 2 graphs
-    shapes: bandShapes,
     paper_bgcolor: CHART_BG,
     plot_bgcolor: CHART_BG,
     margin: { l: 56, r: 20, t: 28, b: 52 },
@@ -158,7 +160,7 @@ export function FRChart({ traces, enabledBands }: Props) {
   }
   return (
     <Plot
-      data={plotData}
+      data={allPlotData}
       layout={layout}
       config={config}
       style={{ width: "100%", height: "100%" }}
