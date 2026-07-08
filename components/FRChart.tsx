@@ -1,7 +1,6 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Image from "next/image";
 import type { Trace } from "@/types/audio";
 import { PARAMETER_BANDS } from "@/lib/parameterBands";
 
@@ -167,7 +166,7 @@ export function FRChart({ traces, enabledBands }: Props) {
         className="flex flex-col items-center justify-center h-full gap-3"
         style={{ color: "var(--text-muted)" }}
       >
-        <Image src="/logo.png" alt="FreqRes Logo" width={48} height={48} className="opacity-30 grayscale" />
+        <div className="text-4xl opacity-30">〰</div>
         <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
           No frequency response curves loaded
         </p>
