@@ -178,6 +178,15 @@ export function Sidebar({
           >
             ⚖️ Legal & Privacy Policy
           </Link>
+          <a
+            href="https://github.com/jaermaine/freqres-visualizer-dashboard/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs hover:underline"
+            style={{ color: "var(--text-muted)" }}
+          >
+            🐛 Report Bug / Feedback
+          </a>
         </div>
       </div>
       </aside>

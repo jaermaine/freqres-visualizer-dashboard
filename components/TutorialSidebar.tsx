@@ -10,6 +10,7 @@ export function TutorialSidebar() {
     { id: "unsupported", label: "Unsupported Platforms" },
     { id: "raw-files", label: "Raw Measurement Files" },
     { id: "parse-failures", label: "Parse Failures" },
+    { id: "feedback", label: "Feedback & Bug Reports" },
   ];
 
   return (

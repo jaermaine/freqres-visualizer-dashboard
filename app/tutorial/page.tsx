@@ -210,6 +210,22 @@ export default function TutorialPage() {
           </div>
         </section>
 
+        {/* Feedback */}
+        <section id="feedback" className="mb-10">
+          <h2 className="text-base font-semibold mb-3" style={{ color: "var(--text-primary)" }}>Feedback & Bug Reports</h2>
+          <p className="text-sm mb-4" style={{ color: "var(--text-secondary)", lineHeight: 1.8 }}>
+            Since FreqRes is entirely stateless and operates without a backend database, we process all feedback, feature requests, and bug reports through our public GitHub repository.
+          </p>
+          <a
+            href="https://github.com/jaermaine/freqres-visualizer-dashboard/issues/new"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-primary inline-flex items-center gap-2"
+          >
+            Submit Feedback on GitHub
+          </a>
+        </section>
+
         <div className="pb-8">
           <Link href="/" className="btn-primary inline-block">
             ← Back to Dashboard
