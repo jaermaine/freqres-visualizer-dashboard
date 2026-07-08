@@ -17,6 +17,7 @@ interface Props {
   onRemoveTrace: (id: string) => void;
   onColorChange: (id: string, color: string) => void;
   onLabelChange: (id: string, label: string) => void;
+  onReorderTraces: (sourceIndex: number, destIndex: number) => void;
   onToggleBand: (id: string) => void;
   isOpen?: boolean;
   onClose?: () => void;
