@@ -49,43 +49,15 @@ export function FRChart({ traces, enabledBands }: Props) {
     };
   });
 
-  // Parameter bands as traces (for hover text)
-  const activeBands = PARAMETER_BANDS.filter((b) => enabledBands.has(b.id));
-  const bandTraces: any[] = activeBands.map((band) => {
-    // Generate dummy points for 'x unified' hover mode interpolation across the whole band
-    const numPoints = 10;
-    const xArr: number[] = [];
-    const yArr: number[] = [];
-    const logMin = Math.log10(band.freqLow);
-    const logMax = Math.log10(band.freqHigh);
-    for (let i = 0; i <= numPoints; i++) {
-      xArr.push(Math.pow(10, logMin + (logMax - logMin) * (i / numPoints)));
-      yArr.push(Y_MAX - 2); // Put the hover trigger near the top
-    }
-
-    return {
-      x: xArr,
-      y: yArr,
-      type: "scatter",
-      mode: "lines",
-      name: band.label,
-      // Invisible line just to trigger hover text
-      line: { width: 0, color: "transparent" },
-      hovertemplate: `<b>${band.label}</b><extra></extra>`,
-      showlegend: false,
-      hoverinfo: "text",
-    };
-  });
-
-  // Visual colored horizontal lines for each band sitting at the bottom of the graph
+  // Visual colored horizontal lines for each band sitting exactly at 41 dB (1 dB above the 40 dB floor)
   const bandShapes: any[] = activeBands.map((band) => ({
     type: "line",
     xref: "x",
-    yref: "paper",
+    yref: "y", // bind directly to the data axis
     x0: Math.log10(band.freqLow),
     x1: Math.log10(band.freqHigh),
-    y0: 0.015,
-    y1: 0.015,
+    y0: Y_MIN + 1, // 41 dB
+    y1: Y_MIN + 1, // 41 dB
     line: {
       color: band.color.replace(/[\d.]+\)$/g, '0.8)'), // make color much more opaque
       width: 10,
@@ -93,9 +65,8 @@ export function FRChart({ traces, enabledBands }: Props) {
     layer: "above",
   }));
 
-  const allPlotData = [...plotData, ...bandTraces];
-
   const layout: any = {
+    showlegend: visibleTraces.length >= 2, // only show legend if at least 2 graphs
     shapes: bandShapes,
     paper_bgcolor: CHART_BG,
     plot_bgcolor: CHART_BG,
@@ -182,7 +153,7 @@ export function FRChart({ traces, enabledBands }: Props) {
   }
   return (
     <Plot
-      data={allPlotData}
+      data={plotData}
       layout={layout}
       config={config}
       style={{ width: "100%", height: "100%" }}
