@@ -49,6 +49,8 @@ export function FRChart({ traces, enabledBands }: Props) {
     };
   });
 
+  const activeBands = PARAMETER_BANDS.filter((b) => enabledBands.has(b.id));
+
   // Visual colored horizontal lines for each band sitting exactly at 41 dB (1 dB above the 40 dB floor)
   const bandShapes: any[] = activeBands.map((band) => ({
     type: "line",
