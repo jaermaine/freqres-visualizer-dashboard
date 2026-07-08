@@ -51,19 +51,24 @@ export function FRChart({ traces, enabledBands }: Props) {
 
   const activeBands = PARAMETER_BANDS.filter((b) => enabledBands.has(b.id));
 
-  // Visual colored background shapes for each band
-  const bandShapes: any[] = activeBands.map((band) => ({
-    type: "rect",
-    xref: "x",
-    yref: "paper",
-    x0: Math.log10(band.freqLow),
-    x1: Math.log10(band.freqHigh),
-    y0: 0,
-    y1: 1,
-    fillcolor: band.color,
-    line: { width: 0 },
-    layer: "below",
-  }));
+  // Visual colored horizontal bars for each band, dynamically stacked at the top of the graph so they do not overlap
+  const bandShapes: any[] = activeBands.map((band, index) => {
+    const yTop = Y_MAX - (index * 1.5) - 0.2; // Start from 85 dB downwards
+    const yBot = yTop - 1.0; // 1 dB thickness
+
+    return {
+      type: "rect",
+      xref: "x",
+      yref: "y", // bind directly to the data axis
+      x0: Math.log10(band.freqLow),
+      x1: Math.log10(band.freqHigh),
+      y0: yBot,
+      y1: yTop,
+      fillcolor: band.color.replace(/[\d.]+\)$/, '0.9)'), // bold solid color
+      line: { width: 0 },
+      layer: "above",
+    };
+  });
 
   const layout: any = {
     showlegend: visibleTraces.length >= 2, // only show legend if at least 2 graphs
