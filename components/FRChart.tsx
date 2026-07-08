@@ -51,19 +51,17 @@ export function FRChart({ traces, enabledBands }: Props) {
 
   const activeBands = PARAMETER_BANDS.filter((b) => enabledBands.has(b.id));
 
-  // Visual colored horizontal lines for each band sitting exactly at 41 dB (1 dB above the 40 dB floor)
+  // Visual colored horizontal bars for each band sitting exactly at the bottom of the graph (40-41.5 dB)
   const bandShapes: any[] = activeBands.map((band) => ({
-    type: "line",
+    type: "rect",
     xref: "x",
     yref: "y", // bind directly to the data axis
     x0: Math.log10(band.freqLow),
     x1: Math.log10(band.freqHigh),
-    y0: Y_MIN + 1, // 41 dB
-    y1: Y_MIN + 1, // 41 dB
-    line: {
-      color: band.color.replace(/[\d.]+\)$/g, '0.8)'), // make color much more opaque
-      width: 10,
-    },
+    y0: 40,
+    y1: 41.5,
+    fillcolor: band.color.replace(/[\d.]+\)$/, '0.9)'), // bold solid color
+    line: { width: 0 },
     layer: "above",
   }));
 
