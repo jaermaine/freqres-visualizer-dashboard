@@ -3,7 +3,7 @@ import { parseSourceUrl, sourceLabel } from "@/lib/parseSourceUrl";
 import { parseMeasurementText } from "@/lib/parseMeasurementFile";
 import { resolveSquigUrls } from "@/lib/resolveSquigUrl";
 import { verifyUrlSafety } from "@/lib/security";
-import type { ImportResult } from "@/types/audio";
+import type { ImportResult, CurveData } from "@/types/audio";
 
 // In-memory rate limiting store (clears dynamically or on serverless cold starts)
 const RATE_LIMIT_MAP = new Map<string, { count: number; timestamp: number }>();
