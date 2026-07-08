@@ -54,7 +54,7 @@ export function AppShell() {
           let currentTraces = [...prev];
           data.curves.forEach((curve) => {
             const isDuplicate = currentTraces.some(
-              (t) => t.source.originalUrl === data.source.originalUrl && t.label === curve.label
+              (t) => JSON.stringify(t.source) === JSON.stringify(data.source) && t.label === curve.label
             );
             if (isDuplicate) return;
 
