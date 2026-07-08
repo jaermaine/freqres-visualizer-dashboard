@@ -108,7 +108,7 @@ export type FRDataResult = {
 
 export type ImportError = {
   ok: false;
-  code: ParserErrorCode | "FETCH_ERROR" | "UNSUPPORTED_URL" | "RATE_LIMITED" | "INVALID_URL";
+  code: ParserErrorCode | "FETCH_ERROR" | "UNSUPPORTED_URL" | "RATE_LIMITED" | "INVALID_URL" | "SECURITY_BLOCK" | "HTML_RESPONSE";
   message: string;
 };
 
