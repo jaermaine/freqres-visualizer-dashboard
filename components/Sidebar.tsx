@@ -12,7 +12,7 @@ interface Props {
   enabledBands: Set<string>;
   lastResult: ImportResult | null;
   loading: boolean;
-  onImport: (url: string) => void;
+  onImport: (url: string) => Promise<boolean>;
   onToggleTrace: (id: string) => void;
   onRemoveTrace: (id: string) => void;
   onColorChange: (id: string, color: string) => void;
@@ -47,9 +47,12 @@ export function Sidebar({
     return () => clearTimeout(timer);
   }, [cooldown]);
 
-  const handleImport = useCallback(() => {
+  const handleImport = useCallback(async () => {
     if (!url.trim() || loading || cooldown > 0) return;
-    onImport(url.trim());
+    const success = await onImport(url.trim());
+    if (success) {
+      setUrl("");
+    }
     setCooldown(3); // 3-second UI rate limit
   }, [url, onImport, loading, cooldown]);
 

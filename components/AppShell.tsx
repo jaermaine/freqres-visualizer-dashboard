@@ -86,13 +86,16 @@ export function AppShell() {
         setTimeout(() => {
           setLastResult((prev) => (prev === data ? null : prev));
         }, 4000);
+        return true;
       }
+      return false;
     } catch (e) {
       setLastResult({
         ok: false,
         code: "FETCH_ERROR",
         message: "Failed to contact the import API.",
       });
+      return false;
     } finally {
       setLoading(false);
     }
