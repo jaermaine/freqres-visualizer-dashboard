@@ -51,7 +51,7 @@ export function FRChart({ traces, enabledBands }: Props) {
 
   // Parameter bands as traces (for hover text)
   const activeBands = PARAMETER_BANDS.filter((b) => enabledBands.has(b.id));
-  const bandTraces: Plotly.Data[] = activeBands.map((band) => {
+  const bandTraces: any[] = activeBands.map((band) => {
     // Generate dummy points for 'x unified' hover mode interpolation across the whole band
     const numPoints = 10;
     const xArr: number[] = [];
@@ -77,7 +77,8 @@ export function FRChart({ traces, enabledBands }: Props) {
     };
   });
 
-  const bandShapes: Partial<Plotly.Shape>[] = activeBands.map((band) => ({
+  // Visual colored background shapes for each band
+  const bandShapes: any[] = activeBands.map((band) => ({
     type: "rect",
     xref: "x",
     yref: "paper",
@@ -92,7 +93,7 @@ export function FRChart({ traces, enabledBands }: Props) {
 
   const allPlotData = [...plotData, ...bandTraces];
 
-  const layout: Partial<Plotly.Layout> = {
+  const layout: any = {
     shapes: bandShapes,
     paper_bgcolor: CHART_BG,
     plot_bgcolor: CHART_BG,
@@ -140,14 +141,14 @@ export function FRChart({ traces, enabledBands }: Props) {
     dragmode: false,
   };
 
-  const config: Partial<Plotly.Config> = {
+  const config: any = {
     // Scroll zoom disabled — prevents infinite zoom
     scrollZoom: false,
     displayModeBar: true,
     modeBarButtonsToRemove: [
       "zoom2d", "pan2d", "zoomIn2d", "zoomOut2d",
       "autoScale2d", "lasso2d", "select2d",
-    ] as Plotly.ModeBarDefaultButtons[],
+    ] as any[],
     displaylogo: false,
     responsive: true,
     // Double-click resets to the fixed range
