@@ -53,6 +53,11 @@ export function AppShell() {
         setTraces((prev) => {
           let currentTraces = [...prev];
           data.curves.forEach((curve) => {
+            const isDuplicate = currentTraces.some(
+              (t) => t.source.originalUrl === data.source.originalUrl && t.label === curve.label
+            );
+            if (isDuplicate) return;
+
             const newTrace: Trace = {
               id: `${uid}-${Date.now()}-${currentTraces.length}`,
               label: curve.label,
