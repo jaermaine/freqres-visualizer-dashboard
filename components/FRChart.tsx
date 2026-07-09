@@ -152,8 +152,8 @@ export function FRChart({ traces, enabledBands }: Props) {
           No frequency response curves loaded
         </p>
         <p className="text-xs text-center max-w-xs" style={{ color: "var(--text-muted)", lineHeight: 1.7 }}>
-          Paste a raw measurement file URL (.txt / .csv / .tsv) in the sidebar and click{" "}
-          <strong>Import</strong>. Graph page URLs show metadata only.
+          Paste a graph page URL (e.g. squig.link) or a raw measurement file link in the sidebar and click{" "}
+          <strong>Import</strong>.
         </p>
       </div>
     );
