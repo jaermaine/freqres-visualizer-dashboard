@@ -3,12 +3,14 @@
 import dynamic from "next/dynamic";
 import type { Trace } from "@/types/audio";
 import { PARAMETER_BANDS } from "@/lib/parameterBands";
+import { TUNING_TARGETS } from "@/lib/targets";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
 interface Props {
   traces: Trace[];
   enabledBands: Set<string>;
+  selectedTarget?: string;
 }
 
 const CHART_BG   = "#0d0f14";
@@ -22,7 +24,7 @@ const X_MAX = Math.log10(20000);
 const Y_MIN = 30;
 const Y_MAX = 85;
 
-export function FRChart({ traces, enabledBands }: Props) {
+export function FRChart({ traces, enabledBands, selectedTarget }: Props) {
   const visibleTraces = traces.filter((t) => t.visible && t.normalized.hz.length > 0);
 
   // Compute per-trace dB offset so each curve is centered around 60 dB
@@ -51,29 +53,102 @@ export function FRChart({ traces, enabledBands }: Props) {
 
   const activeBands = PARAMETER_BANDS.filter((b) => enabledBands.has(b.id));
 
-  // Parameter bands as thick horizontal traces stacked at the top of the graph
-  const bandLines: any[] = activeBands.map((band, index) => {
-    const yPos = Y_MAX - (index * 1.5) - 0.5; // Stack from 84.5 dB downwards
+  const bandLines: any[] = [];
+  const bandShapes: any[] = [];
 
-    return {
+  const baseTickVals = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+  const baseTickText = ["20", "50", "100", "200", "500", "1k", "2k", "5k", "10k", "20k"];
+  const customTickVals = [...baseTickVals];
+  const customTickText = [...baseTickText];
+
+  const formatFreq = (hz: number) => hz >= 1000 ? `${Number((hz / 1000).toFixed(1))}k` : `${hz}`;
+
+  // Parameter bands as thick horizontal traces stacked at the top of the graph
+  activeBands.forEach((band, index) => {
+    const yPos = Y_MAX - (index * 1.5) - 0.5; // Stack from 84.5 dB downwards
+    const bandColor = band.color.replace(/[\d.]+\)$/, '0.9)'); // bold solid color
+
+    bandLines.push({
       x: [band.freqLow, band.freqHigh],
       y: [yPos, yPos],
       type: "scatter",
       mode: "lines",
       name: band.label,
       line: {
-        color: band.color.replace(/[\d.]+\)$/, '0.9)'), // bold solid color
+        color: bandColor,
         width: 10,
       },
       hoverinfo: "text",
       hovertemplate: `<b>${band.label}</b><extra></extra>`,
       showlegend: false, // hide from legend
-    };
+    });
+
+    // Vertical line at freqLow
+    bandShapes.push({
+      type: "line",
+      x0: band.freqLow,
+      x1: band.freqLow,
+      y0: Y_MIN,
+      y1: yPos,
+      line: {
+        color: bandColor,
+        width: 1.5,
+        dash: "dot",
+      },
+    });
+
+    // Vertical line at freqHigh
+    bandShapes.push({
+      type: "line",
+      x0: band.freqHigh,
+      x1: band.freqHigh,
+      y0: Y_MIN,
+      y1: yPos,
+      line: {
+        color: bandColor,
+        width: 1.5,
+        dash: "dot",
+      },
+    });
+
+    // Highlight on X axis
+    const textColor = band.color.replace(/[\d.]+\)$/, '1)');
+    [band.freqLow, band.freqHigh].forEach(freq => {
+      const existingIdx = customTickVals.indexOf(freq);
+      const styledText = `<b><span style="color:${textColor}">${formatFreq(freq)}</span></b>`;
+      if (existingIdx !== -1) {
+        customTickText[existingIdx] = styledText;
+      } else {
+        customTickVals.push(freq);
+        customTickText.push(styledText);
+      }
+    });
   });
 
-  const allPlotData = [...plotData, ...bandLines];
+  const targetObj = TUNING_TARGETS.find(t => t.id === selectedTarget);
+  const targetTraces: any[] = [];
+  if (targetObj) {
+    targetTraces.push({
+      x: targetObj.hz,
+      y: targetObj.db.map(db => db + 60), // shift to 60dB reference
+      type: "scatter",
+      mode: "lines",
+      name: `Target: ${targetObj.label}`,
+      line: {
+        color: "#aebbc9",
+        width: 3,
+        dash: "longdash",
+        shape: "spline",
+      },
+      opacity: 0.8,
+      hovertemplate: `<b>${targetObj.label}</b><br>%{x:.0f} Hz<br>%{y:.1f} dB<extra></extra>`,
+    });
+  }
+
+  const allPlotData = [...plotData, ...targetTraces, ...bandLines];
 
   const layout: any = {
+    shapes: bandShapes,
     showlegend: visibleTraces.length >= 2, // only show legend if at least 2 graphs
     paper_bgcolor: CHART_BG,
     plot_bgcolor: CHART_BG,
@@ -84,8 +159,8 @@ export function FRChart({ traces, enabledBands }: Props) {
       // Lock to 20–20 kHz — prevent zooming past the useful range
       range: [X_MIN, X_MAX],
       fixedrange: true,
-      tickvals: [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000],
-      ticktext: ["20", "50", "100", "200", "500", "1k", "2k", "5k", "10k", "20k"],
+      tickvals: customTickVals,
+      ticktext: customTickText,
       gridcolor: GRID_COLOR,
       zerolinecolor: GRID_COLOR,
       tickfont: { size: 10, color: TEXT_COLOR },
@@ -141,7 +216,7 @@ export function FRChart({ traces, enabledBands }: Props) {
     },
   };
 
-  if (visibleTraces.length === 0) {
+  if (visibleTraces.length === 0 && !targetObj) {
     return (
       <div
         className="flex flex-col items-center justify-center h-full gap-3"

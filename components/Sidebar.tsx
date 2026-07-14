@@ -6,6 +6,7 @@ import { TraceList } from "./TraceList";
 import { BandToggleGroup } from "./BandToggleGroup";
 import { ImportStatus } from "./HelpPanel";
 import type { Trace, ImportResult } from "@/types/audio";
+import { TUNING_TARGETS } from "@/lib/targets";
 
 interface Props {
   traces: Trace[];
@@ -19,6 +20,8 @@ interface Props {
   onLabelChange: (id: string, label: string) => void;
   onReorderTraces: (sourceIndex: number, destIndex: number) => void;
   onToggleBand: (id: string) => void;
+  selectedTarget: string;
+  onSelectTarget: (id: string) => void;
   isOpen?: boolean;
   onClose?: () => void;
 }
@@ -35,6 +38,8 @@ export function Sidebar({
   onLabelChange,
   onReorderTraces,
   onToggleBand,
+  selectedTarget,
+  onSelectTarget,
   isOpen,
   onClose,
 }: Props) {
@@ -163,6 +168,24 @@ export function Sidebar({
         <section>
           <p className="label-xs mb-1.5">Parameter Bands</p>
           <BandToggleGroup enabled={enabledBands} onToggle={onToggleBand} />
+        </section>
+
+        <hr className="divider" />
+
+        {/* Tuning Targets */}
+        <section>
+          <p className="label-xs mb-1.5">Tuning Target</p>
+          <select
+            value={selectedTarget}
+            onChange={(e) => onSelectTarget(e.target.value)}
+            className="w-full bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded text-sm px-2 py-1.5 focus:outline-none focus:border-indigo-500"
+            style={{ color: "var(--text-primary)" }}
+          >
+            <option value="none">None</option>
+            {TUNING_TARGETS.map(target => (
+              <option key={target.id} value={target.id}>{target.label}</option>
+            ))}
+          </select>
         </section>
 
         <hr className="divider" />

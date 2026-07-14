@@ -40,36 +40,32 @@ function looksLikeJsonError(text: string): boolean {
 }
 
 function detectDelimiter(lines: string[]): RegExp {
-  const sample = lines.slice(0, 5).join("\n");
+  const sample = lines.slice(0, 20).join("\n");
   if (sample.includes("\t")) return /\t/;
   if (sample.includes(",")) return /,/;
   if (sample.includes(";")) return /;/;
   return /\s+/;
 }
 
-const FREQ_HEADERS = new Set(["frequency", "freq", "hz"]);
-const VALUE_HEADERS = new Set(["raw", "db", "spl", "amplitude", "level"]);
-const LEFT_HEADERS = new Set(["left", "l"]);
-const RIGHT_HEADERS = new Set(["right", "r"]);
-
 type ColMap = { freqIdx: number; valIdx: number };
 
 function detectColumns(header: string[]): ColMap | null {
   const lower = header.map((h) => h.trim().toLowerCase());
-  const freqIdx = lower.findIndex((h) => FREQ_HEADERS.has(h));
+  const freqIdx = lower.findIndex((h) => h.includes("freq") || h.includes("hz"));
   if (freqIdx === -1) return null;
 
-  // Prefer "raw" column; then try left+right average
-  const valIdx = lower.findIndex((h) => VALUE_HEADERS.has(h));
-  if (valIdx !== -1 && valIdx !== freqIdx) return { freqIdx, valIdx: -valIdx - 1 }; // negative = single val
+  // Prefer value column; then try left+right average
+  let valIdx = lower.findIndex((h, i) => i !== freqIdx && (h.includes("db") || h.includes("spl") || h.includes("raw") || h.includes("ampl") || h.includes("level") || h.includes("mag")));
 
-  const leftIdx = lower.findIndex((h) => LEFT_HEADERS.has(h));
-  const rightIdx = lower.findIndex((h) => RIGHT_HEADERS.has(h));
-  if (leftIdx !== -1 && rightIdx !== -1) {
+  if (valIdx !== -1) return { freqIdx, valIdx };
+
+  const leftIdx = lower.findIndex((h) => h === "left" || h === "l");
+  const rightIdx = lower.findIndex((h) => h === "right" || h === "r");
+  if (leftIdx !== -1 && rightIdx !== -1 && leftIdx !== freqIdx && rightIdx !== freqIdx) {
     // encode stereo pair
     return { freqIdx, valIdx: -(leftIdx * 1000 + rightIdx) - 1 };
   }
-  if (valIdx !== -1) return { freqIdx, valIdx };
+  
   return { freqIdx, valIdx: freqIdx === 0 ? 1 : 0 };
 }
 
@@ -130,27 +126,37 @@ export function parseMeasurementText(raw: string): ParseResult {
   }
 
   const delim = detectDelimiter(lines);
-  const cells0 = lines[0].split(delim).map((s) => s.trim());
 
-  // Determine if first line is a header
-  const firstCellNum = parseFloat(cells0[0]);
-  let hasHeader = isNaN(firstCellNum);
-  let colMap: ColMap;
-
-  if (hasHeader) {
-    const detected = detectColumns(cells0);
-    if (!detected) {
-      // Could still be numeric data with a strange first token
-      hasHeader = false;
-      colMap = { freqIdx: 0, valIdx: 1 };
-    } else {
-      colMap = detected;
+  // Find the first line that looks like valid numeric data
+  let firstDataIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const cells = lines[i].split(delim).map(s => s.trim());
+    if (cells.length >= 2) {
+      const v0 = parseFloat(cells[0]);
+      const v1 = parseFloat(cells[1]);
+      if (!isNaN(v0) && !isNaN(v1)) {
+        firstDataIdx = i;
+        break;
+      }
     }
-  } else {
-    colMap = { freqIdx: 0, valIdx: 1 };
   }
 
-  const dataLines = hasHeader ? lines.slice(1) : lines;
+  if (firstDataIdx === -1) {
+    return makeError("NO_VALID_ROWS", "No numeric frequency/dB rows could be parsed.");
+  }
+
+  let colMap: ColMap = { freqIdx: 0, valIdx: 1 };
+  
+  if (firstDataIdx > 0) {
+    // Check if the line immediately preceding the data is a header
+    const headerCells = lines[firstDataIdx - 1].split(delim).map(s => s.trim());
+    const detected = detectColumns(headerCells);
+    if (detected) {
+      colMap = detected;
+    }
+  }
+
+  const dataLines = lines.slice(firstDataIdx);
   const points: FRPoint[] = [];
 
   for (const line of dataLines) {
@@ -167,17 +173,63 @@ export function parseMeasurementText(raw: string): ParseResult {
     return makeError("TOO_FEW_POINTS", `Only ${points.length} valid data points found (minimum ${MIN_POINTS}).`);
   }
 
-  // Sort and deduplicate
-  points.sort((a, b) => a.hz - b.hz);
-  const deduped: FRPoint[] = [];
+  // Split into sweeps to handle files with appended Left/Right channels (prevents jagged lines)
+  // A new sweep starts whenever frequency drops or encounters a duplicate X value.
+  const sweeps: FRPoint[][] = [];
+  let currentSweep: FRPoint[] = [];
+  let lastHz = -1;
+
   for (const pt of points) {
-    if (deduped.length === 0 || deduped[deduped.length - 1].hz !== pt.hz) {
-      deduped.push(pt);
+    if (pt.hz <= lastHz) {
+      if (currentSweep.length > 0) {
+        sweeps.push(currentSweep);
+      }
+      currentSweep = [];
+    }
+    currentSweep.push(pt);
+    lastHz = pt.hz;
+  }
+  if (currentSweep.length > 0) sweeps.push(currentSweep);
+
+  // Filter out glitched sweeps (e.g., single duplicate points causing vertical lines)
+  const validSweeps = sweeps.filter((s) => s.length >= MIN_POINTS);
+
+  if (validSweeps.length === 0) {
+    return makeError("TOO_FEW_POINTS", `No valid sweep found with at least ${MIN_POINTS} points.`);
+  }
+
+  // Normalize each valid sweep and average them
+  const grid = buildLogGrid();
+  const sumDb = new Array(grid.length).fill(0);
+
+  for (const sweep of validSweeps) {
+    sweep.sort((a, b) => a.hz - b.hz);
+    const deduped: FRPoint[] = [];
+    for (const pt of sweep) {
+      if (deduped.length === 0 || deduped[deduped.length - 1].hz !== pt.hz) {
+        deduped.push(pt);
+      }
+    }
+    const norm = normalizeCurve(deduped);
+    for (let i = 0; i < grid.length; i++) {
+      sumDb[i] += norm.db[i];
     }
   }
 
-  const normalized = normalizeCurve(deduped);
-  return { ok: true, points: deduped, normalized };
+  const avgDb = sumDb.map((val) => val / validSweeps.length);
+  const normalized: NormalizedCurve = { hz: grid, db: avgDb };
+
+  // For raw points, return the first sweep's deduped points
+  const firstSweep = validSweeps[0];
+  firstSweep.sort((a, b) => a.hz - b.hz);
+  const finalPoints: FRPoint[] = [];
+  for (const pt of firstSweep) {
+    if (finalPoints.length === 0 || finalPoints[finalPoints.length - 1].hz !== pt.hz) {
+      finalPoints.push(pt);
+    }
+  }
+
+  return { ok: true, points: finalPoints, normalized };
 }
 
 function normalizeCurve(points: FRPoint[]): import("@/types/audio").NormalizedCurve {

@@ -34,6 +34,7 @@ export function AppShell() {
   const [lastResult, setLastResult] = useState<ImportResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [selectedTarget, setSelectedTarget] = useState<string>("none");
   const uid = useId();
   let traceCounter = traces.length;
 
@@ -149,6 +150,8 @@ export function AppShell() {
         onLabelChange={handleLabelChange}
         onReorderTraces={handleReorderTraces}
         onToggleBand={handleToggleBand}
+        selectedTarget={selectedTarget}
+        onSelectTarget={setSelectedTarget}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
@@ -175,7 +178,7 @@ export function AppShell() {
         </div>
 
         <div className="flex-1 min-h-[50vh]">
-          <FRChart traces={traces} enabledBands={enabledBands} />
+          <FRChart traces={traces} enabledBands={enabledBands} selectedTarget={selectedTarget} />
         </div>
         
         {/* Floating Toast Notification */}
