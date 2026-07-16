@@ -165,15 +165,15 @@ export function Sidebar({
         <hr className="divider" />
 
         {/* Parameter Bands */}
-        <section>
+        <section className={traces.length === 0 ? "opacity-50 pointer-events-none select-none transition-opacity" : "transition-opacity"}>
           <p className="label-xs mb-1.5">Parameter Bands</p>
-          <BandToggleGroup enabled={enabledBands} onToggle={onToggleBand} />
+          <BandToggleGroup enabled={enabledBands} onToggle={onToggleBand} disabled={traces.length === 0} />
         </section>
 
         <hr className="divider" />
 
         {/* Tuning Targets */}
-        <section>
+        <section className="transition-opacity">
           <p className="label-xs mb-1.5">Tuning Target</p>
           <select
             value={selectedTarget}

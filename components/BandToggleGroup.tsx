@@ -7,9 +7,10 @@ import type { BandCategory } from "@/types/audio";
 interface Props {
   enabled: Set<string>;
   onToggle: (id: string) => void;
+  disabled?: boolean;
 }
 
-export function BandToggleGroup({ enabled, onToggle }: Props) {
+export function BandToggleGroup({ enabled, onToggle, disabled }: Props) {
   const [openCats, setOpenCats] = useState<Set<string>>(new Set(["bass"]));
 
   const toggleCat = (id: string) => {
@@ -58,7 +59,8 @@ export function BandToggleGroup({ enabled, onToggle }: Props) {
                         type="checkbox"
                         checked={on}
                         onChange={() => onToggle(band.id)}
-                        className="w-3.5 h-3.5 accent-indigo-500"
+                        disabled={disabled}
+                        className="w-3.5 h-3.5 accent-indigo-500 disabled:cursor-not-allowed"
                         id={`band-${band.id}`}
                       />
                       <span

@@ -46,6 +46,18 @@ const URL_CARDS: UrlPatternCardData[] = [
     example: "https://example.com/measurements/headphone_fr.tsv",
     note: "Tab-separated values. Same parsing rules as CSV.",
   },
+  {
+    title: "CSI-Zone",
+    type: "graph-url",
+    example: "https://csi-zone.squig.link/?share=Tanchjim_Nora",
+    note: "This database often contains measurement files with severe formatting irregularities (e.g., unsorted frequency data causing jagged lines, or mislabeled headers). It is officially unsupported because the raw data is frequently malformed.",
+  },
+  {
+    title: "Earphones Archive",
+    type: "graph-url",
+    example: "https://earphonesarchive.squig.link/?share=Tanchjim_Nora_(large_bore_tips)",
+    note: "This database often contains measurement files with severe formatting irregularities (e.g., unsorted frequency data causing jagged lines, or mislabeled headers). It is officially unsupported because the raw data is frequently malformed.",
+  },
 ];
 
 const PARSE_ERRORS = [
@@ -54,33 +66,6 @@ const PARSE_ERRORS = [
   { code: "TOO_FEW_POINTS",            fix: "Fewer than 10 valid data points were found. Ensure the file has complete frequency sweep data." },
   { code: "UNSUPPORTED_BINARY_CONTENT",fix: "The file is binary (e.g., REW .mdat). Export as .txt or .csv from REW first." },
   { code: "FETCH_ERROR",               fix: "Network or CORS error. Verify the URL is publicly accessible. Some sources block direct fetch." },
-];
-
-// GitHub raw file examples — these are illustrative only.
-// The most reliable way to get a working URL is the DevTools Network tab method (Method 1).
-// Repo paths and file names vary; always verify via the Network tab or by browsing the repo.
-const GITHUB_RAW_EXAMPLES = [
-  {
-    reviewer: "AutoEq aggregated measurements",
-    repo: "jaakkopasanen/AutoEq",
-    example: "https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master/measurements/crinacle/GRAS%2043AG-7%20711%20C%20w%20MBA%20adapter/Truthear%20Gate/Truthear%20Gate.txt",
-    note: "AutoEq aggregates data from many reviewers. Browse github.com/jaakkopasanen/AutoEq/tree/master/measurements to find models. URL-encode spaces as %20.",
-  },
-  {
-    reviewer: "KopijaElias / oratory1990 community mirrors",
-    repo: "varies by reviewer",
-    example: "https://raw.githubusercontent.com/jaakkopasanen/AutoEq/master/measurements/oratory1990/over-ear/Sennheiser%20HD%20650/Sennheiser%20HD%20650.txt",
-    note: "Other reviewers (oratory1990, etc.) are also in AutoEq. Same URL pattern, different measurements/ subfolder.",
-  },
-];
-
-// Model token → expected filename convention used by most squig.link databases.
-const TOKEN_EXAMPLES = [
-  { token: "Truthear_Gate",        filename: "Truthear Gate.txt"        },
-  { token: "Moondrop_Aria",        filename: "Moondrop Aria.txt"        },
-  { token: "Precog_Target",        filename: "Precog Target.txt"        },
-  { token: "JM-1_Target",          filename: "JM-1 Target.txt"          },
-  { token: "Harman_IEM_2019v2",    filename: "Harman IEM 2019v2.txt"    },
 ];
 
 export default function TutorialPage() {
@@ -93,7 +78,7 @@ export default function TutorialPage() {
           FreqRes — Guide
         </h1>
         <p className="text-sm mb-8" style={{ color: "var(--text-secondary)" }}>
-          A guide to understanding frequency response graphs, supported URL patterns, and import behavior.
+          A guide to understanding frequency response graphs, managing traces, and supported URL patterns.
         </p>
 
         {/* What is FreqRes? */}
@@ -130,27 +115,43 @@ export default function TutorialPage() {
               <strong style={{ color: "var(--text-primary)" }}>Y-Axis (Decibels / dB):</strong> Represents the loudness or amplitude of the sound at each specific frequency. A higher line means that specific frequency is louder.
             </li>
             <li>
-              <strong style={{ color: "var(--text-primary)" }}>Parameter Bands:</strong> The colorful vertical zones on the graph (e.g., Sub Bass, Mid Bass, Lower Midrange) help you quickly identify which parts of the frequency spectrum correspond to specific musical characteristics. You can toggle these bands on and off in the sidebar.
+              <strong style={{ color: "var(--text-primary)" }}>Parameter Bands:</strong> The colorful vertical zones on the graph (e.g., Sub Bass, Mid Bass, Lower Midrange) help you quickly identify which parts of the frequency spectrum correspond to specific musical characteristics. You can toggle these bands on and off in the sidebar once a frequency response has been imported.
+            </li>
+            <li>
+              <strong style={{ color: "var(--text-primary)" }}>Tuning Targets:</strong> Reference tuning curves (e.g., Harman IE 2019, IEF Neutral) that you can select from the sidebar to overlay on your graph, allowing you to compare your imported traces against industry standards.
             </li>
           </ul>
         </section>
 
-        {/* Squig.link */}
-        <section id="squiglink" className="mb-10">
-          <h2 className="text-base font-semibold mb-2" style={{ color: "var(--text-primary)" }}>Squig.link</h2>
+        {/* Managing Traces */}
+        <section id="managing-traces" className="mb-10">
+          <h2 className="text-base font-semibold mb-2" style={{ color: "var(--text-primary)" }}>Managing Traces</h2>
           <p className="text-sm mb-3" style={{ color: "var(--text-secondary)", lineHeight: 1.8 }}>
-            Any URL whose host ends in{" "}
-            <code className="text-xs px-1 rounded" style={{ background: "var(--bg-raised)" }}>.squig.link</code>{" "}
-            is a graph viewer. The{" "}
-            <code className="text-xs px-1 rounded" style={{ background: "var(--bg-raised)" }}>?share=</code>{" "}
-            parameter lists the comma-separated model tokens. FreqRes now automatically searches the host's database to resolve these models and fetches the underlying curve data for you!
+            Once you have imported frequency response curves, they will appear in the sidebar as traces. You can manage them with the following features:
+          </p>
+          <ul className="text-sm flex flex-col gap-2 pl-4 list-disc" style={{ color: "var(--text-secondary)", lineHeight: 1.8 }}>
+            <li><strong style={{ color: "var(--text-primary)" }}>Visibility Toggle:</strong> Click the checkbox next to a trace to show or hide it on the graph.</li>
+            <li><strong style={{ color: "var(--text-primary)" }}>Change Color:</strong> Click the color block next to a trace's name to pick a new color. FreqRes auto-assigns high-contrast neon colors by default.</li>
+            <li><strong style={{ color: "var(--text-primary)" }}>Rename Trace:</strong> Click on the trace's name to edit it. This does not affect the original file.</li>
+            <li><strong style={{ color: "var(--text-primary)" }}>Reorder:</strong> Drag and drop a trace by clicking the grab icon (six dots) to rearrange the list.</li>
+            <li><strong style={{ color: "var(--text-primary)" }}>Delete:</strong> Click the '✕' icon to remove a trace entirely.</li>
+          </ul>
+        </section>
+
+        {/* Supported Platforms & Imports */}
+        <section id="supported-platforms" className="mb-10">
+          <h2 className="text-base font-semibold mb-2" style={{ color: "var(--text-primary)" }}>Supported Graph URLs</h2>
+          <p className="text-sm mb-3" style={{ color: "var(--text-secondary)", lineHeight: 1.8 }}>
+            FreqRes natively supports sharing URLs from major graph viewers. Just copy the URL from their address bar and paste it into the import field. FreqRes will parse the URL, identify the models shared, and attempt to fetch the original measurement files from their respective databases.
           </p>
           <p className="text-sm mb-4" style={{ color: "var(--text-secondary)", lineHeight: 1.8 }}>
-            If auto-resolution fails for a specific model, it will gracefully fall back to a metadata-only result. In that case, you can manually provide a direct raw file URL.
+            If auto-resolution fails for a specific model (e.g. CORS restrictions or missing from the database), it will gracefully fall back to a metadata-only result. In that case, you can manually provide a direct raw file URL.
           </p>
-          <UrlPatternCard card={URL_CARDS[0]} />
-          <div className="mt-2">
-            <UrlPatternCard card={URL_CARDS[1]} />
+          <div className="flex flex-col gap-2">
+            <UrlPatternCard card={URL_CARDS[0]} />
+            <div className="mt-2">
+              <UrlPatternCard card={URL_CARDS[1]} />
+            </div>
           </div>
         </section>
 
@@ -165,7 +166,6 @@ export default function TutorialPage() {
               To get a link to a graph, just go to any Squig.link viewer, select an IEM, and click the copy URL button or copy the URL from the browser's address bar.
             </p>
           </div>
-
         </section>
 
         {/* Unsupported Platforms */}
@@ -173,8 +173,14 @@ export default function TutorialPage() {
           <h2 className="text-base font-semibold mb-2" style={{ color: "var(--error)" }}>Unsupported Platforms</h2>
           <p className="text-sm mb-4" style={{ color: "var(--text-secondary)", lineHeight: 1.8 }}>
             <code className="text-xs px-1 rounded" style={{ background: "var(--bg-raised)" }}>graph.hangout.audio</code>
+            <code className="text-xs px-1 rounded ml-2" style={{ background: "var(--bg-raised)" }}>csi-zone.squig.link</code>
+            <code className="text-xs px-1 rounded ml-2" style={{ background: "var(--bg-raised)" }}>earphonesarchive.squig.link</code>
           </p>
-          <UrlPatternCard card={URL_CARDS[2]} />
+          <div className="flex flex-col gap-2">
+            <UrlPatternCard card={URL_CARDS[2]} />
+            <UrlPatternCard card={URL_CARDS[6]} />
+            <UrlPatternCard card={URL_CARDS[7]} />
+          </div>
         </section>
 
         {/* Raw files */}
@@ -193,7 +199,7 @@ export default function TutorialPage() {
             <li>BOM and mixed line endings</li>
           </ul>
           <div className="flex flex-col gap-2">
-            {URL_CARDS.slice(3).map((c) => <UrlPatternCard key={c.example} card={c} />)}
+            {URL_CARDS.slice(3, 6).map((c) => <UrlPatternCard key={c.example} card={c} />)}
           </div>
         </section>
 
