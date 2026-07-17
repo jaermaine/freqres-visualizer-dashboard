@@ -8,8 +8,10 @@ Instead of navigating complex proprietary databases or downloading text files ma
 
 - **Auto-Resolution Engine:** Paste a Squig.link `?share=` URL, and FreqRes will dynamically fetch the host's manifest, score and match the model tokens, and seamlessly fetch the underlying raw data files.
 - **Trace Comparison & Management:** Stack multiple frequency curves at once. An intelligent color algorithm ensures high-contrast traces without duplicates. You can easily rename, recolor, toggle visibility, and drag-and-drop traces to reorder their Z-index.
-- **Interactive Parameter Bands:** Toggle semantic frequency zones (e.g., Sub Bass, Mid Bass, Lower Midrange) which render as beautiful, semi-transparent vertical overlays directly onto the chart to help contextualize the data.
+- **Tuning Targets:** Overlay industry-standard tuning targets (e.g., Harman IE 2019, IEF Neutral) directly onto your graph to evaluate IEMs against established benchmarks.
+- **Interactive Parameter Bands:** Semantic frequency zones (e.g., Sub Bass, Mid Bass, "Air") render as beautiful, semi-transparent overlays. Hover directly over the graph to preview these zones, and click anywhere to lock them in place.
 - **Smart Normalization:** Raw frequency data is normalized around the 1kHz range, ensuring multiple IEM traces align intuitively on the exact same baseline for accurate comparison.
+- **Frictionless Onboarding:** First-time users are greeted with a quick 3-step feature highlight modal that automatically remembers dismissal state via local storage.
 - **Mobile Responsive:** Features a premium UI with a sleek off-canvas Hamburger drawer and fully responsive charts that look stunning on both desktop and mobile devices.
 - **Dynamic Export:** One-click export for high-resolution PNG graph screenshots with dynamically generated, descriptive filenames (e.g., `Moondrop Aria | Truthear Gate A-B Comparison.png`).
 
