@@ -246,7 +246,7 @@ export function AppShell() {
         <div 
           className="flex-1 min-h-[50vh]"
           onMouseLeave={() => setHoveredHz(null)}
-          onClick={() => {
+          onPointerDownCapture={() => {
             if (isInteractiveGraph && hoveredHz !== null) {
               handleChartClick(hoveredHz);
             }
