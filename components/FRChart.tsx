@@ -10,7 +10,10 @@ const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 interface Props {
   traces: Trace[];
   enabledBands: Set<string>;
+  hoveredBands?: Set<string>;
   selectedTarget?: string;
+  onChartHover?: (hz: number | null) => void;
+  onChartClick?: (hz: number) => void;
 }
 
 const CHART_BG   = "#0d0f14";
@@ -24,7 +27,7 @@ const X_MAX = Math.log10(20000);
 const Y_MIN = 30;
 const Y_MAX = 85;
 
-export function FRChart({ traces, enabledBands, selectedTarget }: Props) {
+export function FRChart({ traces, enabledBands, hoveredBands = new Set(), selectedTarget, onChartHover, onChartClick }: Props) {
   const visibleTraces = traces.filter((t) => t.visible && t.normalized.hz.length > 0);
 
   // Compute per-trace dB offset so each curve is centered around 60 dB
@@ -51,7 +54,7 @@ export function FRChart({ traces, enabledBands, selectedTarget }: Props) {
     };
   });
 
-  const activeBands = PARAMETER_BANDS.filter((b) => enabledBands.has(b.id));
+  const activeBands = PARAMETER_BANDS.filter((b) => enabledBands.has(b.id) || hoveredBands.has(b.id));
 
   const bandLines: any[] = [];
   const bandShapes: any[] = [];
@@ -65,12 +68,21 @@ export function FRChart({ traces, enabledBands, selectedTarget }: Props) {
 
   // Parameter bands as thick horizontal traces stacked at the top of the graph
   activeBands.forEach((band, index) => {
+    const isLocked = enabledBands.has(band.id);
     const yPos = Y_MAX - (index * 1.5) - 0.5; // Stack from 84.5 dB downwards
-    const bandColor = band.color.replace(/[\d.]+\)$/, '0.9)'); // bold solid color
+    const bandColor = band.color.replace(/[\d.]+\)$/, isLocked ? '0.9)' : '0.4)'); // visual distinction
+
+    let xVals = [band.freqLow, band.freqHigh];
+    if (visibleTraces.length > 0) {
+      const hzArr = visibleTraces[0].normalized.hz;
+      const insidePoints = hzArr.filter(hz => hz > band.freqLow && hz < band.freqHigh);
+      xVals = [band.freqLow, ...insidePoints, band.freqHigh];
+    }
+    const yVals = xVals.map(() => yPos);
 
     bandLines.push({
-      x: [band.freqLow, band.freqHigh],
-      y: [yPos, yPos],
+      x: xVals,
+      y: yVals,
       type: "scatter",
       mode: "lines",
       name: band.label,
@@ -79,7 +91,7 @@ export function FRChart({ traces, enabledBands, selectedTarget }: Props) {
         width: 10,
       },
       hoverinfo: "text",
-      hovertemplate: `<b>${band.label}</b><extra></extra>`,
+      hovertemplate: `<b>${band.label}</b>${!isLocked ? " <span style='font-size:10px;color:#8892a4'>(Click to lock)</span>" : ""}<extra></extra>`,
       showlegend: false, // hide from legend
     });
 
@@ -191,7 +203,7 @@ export function FRChart({ traces, enabledBands, selectedTarget }: Props) {
       font: { size: 11, color: TEXT_COLOR },
     },
 
-    hovermode: "x unified",
+    hovermode: "x",
     // No drag zoom — chart is already constrained to 20–20 kHz
     dragmode: false,
   };
@@ -240,6 +252,19 @@ export function FRChart({ traces, enabledBands, selectedTarget }: Props) {
       config={config}
       style={{ width: "100%", height: "100%" }}
       useResizeHandler
+      onHover={(e) => {
+        if (e.points && e.points.length > 0 && onChartHover) {
+          onChartHover(e.points[0].x as number);
+        }
+      }}
+      onUnhover={() => {
+        if (onChartHover) onChartHover(null);
+      }}
+      onClick={(e) => {
+        if (e.points && e.points.length > 0 && onChartClick) {
+          onChartClick(e.points[0].x as number);
+        }
+      }}
     />
   );
 }

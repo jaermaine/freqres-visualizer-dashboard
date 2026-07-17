@@ -116,6 +116,8 @@ export default function TutorialPage() {
             </li>
             <li>
               <strong style={{ color: "var(--text-primary)" }}>Parameter Bands:</strong> The colorful vertical zones on the graph (e.g., Sub Bass, Mid Bass, Lower Midrange) help you quickly identify which parts of the frequency spectrum correspond to specific musical characteristics. You can toggle these bands on and off in the sidebar once a frequency response has been imported.
+              <br />
+              <em style={{ color: "var(--text-muted)" }}>Interactive Selection: By default, hovering over the graph data previews the parameter bands for that frequency, and clicking locks them in. Tooltips stick close to your cursor so you can easily trace the curves. You can toggle this feature off in the sidebar using the "Graph Select" checkbox. To quickly reset your view, use the global "Clear All" button or the individual "Clear" buttons next to each category header.</em>
             </li>
             <li>
               <strong style={{ color: "var(--text-primary)" }}>Tuning Targets:</strong> Reference tuning curves (e.g., Harman IE 2019, IEF Neutral) that you can select from the sidebar to overlay on your graph, allowing you to compare your imported traces against industry standards.

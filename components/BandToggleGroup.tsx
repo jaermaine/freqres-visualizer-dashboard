@@ -7,10 +7,12 @@ import type { BandCategory } from "@/types/audio";
 interface Props {
   enabled: Set<string>;
   onToggle: (id: string) => void;
+  onClearCategory?: (categoryId: string) => void;
+  onHover?: (id: string | null) => void;
   disabled?: boolean;
 }
 
-export function BandToggleGroup({ enabled, onToggle, disabled }: Props) {
+export function BandToggleGroup({ enabled, onToggle, onClearCategory, onHover, disabled }: Props) {
   const [openCats, setOpenCats] = useState<Set<string>>(new Set(["bass"]));
 
   const toggleCat = (id: string) => {
@@ -36,9 +38,19 @@ export function BandToggleGroup({ enabled, onToggle, disabled }: Props) {
               style={{ background: isOpen ? "var(--bg-hover)" : "transparent" }}
               onClick={() => toggleCat(cat.id)}
             >
-              <p className="label-xs mb-0 m-0 leading-none">
-                {cat.label} {activeCount > 0 && <span className="text-indigo-400">({activeCount})</span>}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="label-xs mb-0 m-0 leading-none">
+                  {cat.label} {activeCount > 0 && <span className="text-indigo-400">({activeCount})</span>}
+                </p>
+                {activeCount > 0 && onClearCategory && (
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); onClearCategory(cat.id); }}
+                    className="text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
               <span className="text-xs leading-none" style={{ color: "var(--text-muted)" }}>
                 {isOpen ? "▲" : "▼"}
               </span>
@@ -54,6 +66,8 @@ export function BandToggleGroup({ enabled, onToggle, disabled }: Props) {
                     <label
                       key={band.id}
                       className="flex items-center gap-2 cursor-pointer py-1 px-1 rounded hover:bg-slate-800/40 select-none"
+                      onMouseEnter={() => onHover?.(band.id)}
+                      onMouseLeave={() => onHover?.(null)}
                     >
                       <input
                         type="checkbox"

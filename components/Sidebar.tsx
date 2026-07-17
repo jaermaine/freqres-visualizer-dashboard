@@ -20,6 +20,11 @@ interface Props {
   onLabelChange: (id: string, label: string) => void;
   onReorderTraces: (sourceIndex: number, destIndex: number) => void;
   onToggleBand: (id: string) => void;
+  onClearAllBands: () => void;
+  onClearCategory: (categoryId: string) => void;
+  onHoverBand?: (id: string | null) => void;
+  isInteractiveGraph: boolean;
+  onToggleInteractiveGraph: () => void;
   selectedTarget: string;
   onSelectTarget: (id: string) => void;
   isOpen?: boolean;
@@ -38,6 +43,11 @@ export function Sidebar({
   onLabelChange,
   onReorderTraces,
   onToggleBand,
+  onClearAllBands,
+  onClearCategory,
+  onHoverBand,
+  isInteractiveGraph,
+  onToggleInteractiveGraph,
   selectedTarget,
   onSelectTarget,
   isOpen,
@@ -166,8 +176,27 @@ export function Sidebar({
 
         {/* Parameter Bands */}
         <section className={traces.length === 0 ? "opacity-50 pointer-events-none select-none transition-opacity" : "transition-opacity"}>
-          <p className="label-xs mb-1.5">Parameter Bands</p>
-          <BandToggleGroup enabled={enabledBands} onToggle={onToggleBand} disabled={traces.length === 0} />
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-2">
+              <p className="label-xs m-0">Parameter Bands</p>
+              {enabledBands.size > 0 && (
+                <button onClick={onClearAllBands} className="text-[10px] text-indigo-400 hover:text-indigo-300">
+                  Clear All
+                </button>
+              )}
+            </div>
+            <label className="flex items-center gap-1.5 cursor-pointer text-xs" style={{ color: "var(--text-muted)" }}>
+              <input type="checkbox" checked={isInteractiveGraph} onChange={onToggleInteractiveGraph} className="accent-indigo-500" />
+              Graph Select
+            </label>
+          </div>
+          <BandToggleGroup 
+            enabled={enabledBands} 
+            onToggle={onToggleBand} 
+            onClearCategory={onClearCategory}
+            onHover={onHoverBand} 
+            disabled={traces.length === 0} 
+          />
         </section>
 
         <hr className="divider" />
@@ -176,6 +205,7 @@ export function Sidebar({
         <section className="transition-opacity">
           <p className="label-xs mb-1.5">Tuning Target</p>
           <select
+            aria-label="Tuning Target"
             value={selectedTarget}
             onChange={(e) => onSelectTarget(e.target.value)}
             className="w-full bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded text-sm px-2 py-1.5 focus:outline-none focus:border-indigo-500"
@@ -193,14 +223,14 @@ export function Sidebar({
         <div className="pb-2 flex flex-col gap-2">
           <Link
             href="/tutorial"
-            className="text-xs hover:underline"
+            className="text-xs hover:underline py-1"
             style={{ color: "var(--text-muted)" }}
           >
             📖 Tutorial & Troubleshooting →
           </Link>
           <Link
             href="/legal"
-            className="text-xs hover:underline"
+            className="text-xs hover:underline py-1"
             style={{ color: "var(--text-muted)" }}
           >
             ⚖️ Legal & Privacy Policy
@@ -209,7 +239,7 @@ export function Sidebar({
             href="https://github.com/jaermaine/freqres-visualizer-dashboard/issues"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs hover:underline"
+            className="text-xs hover:underline py-1"
             style={{ color: "var(--text-muted)" }}
           >
             🐛 Report Bug / Feedback

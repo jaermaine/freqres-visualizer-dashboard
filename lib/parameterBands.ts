@@ -16,6 +16,7 @@ export const PARAMETER_BANDS: ParameterBand[] = [
   { id: "upper-treble",    label: "Upper Treble",    freqLow: 4000,  freqHigh: 15000, category: "treble",  color: "rgba(240,80,40,0.12)"   },
   { id: "detail-sibilance",label: "Detail/Sibilance",freqLow: 4000,  freqHigh: 10000, category: "treble",  color: "rgba(220,60,80,0.12)"   },
   { id: "texture",         label: "Texture",         freqLow: 4000,  freqHigh: 15000, category: "treble",  color: "rgba(200,100,60,0.10)"  },
+  { id: "air",             label: "Air",             freqLow: 15000, freqHigh: 20000, category: "treble",  color: "rgba(180,60,200,0.11)"  },
   // Quality
   { id: "soundstage", label: "Soundstage", freqLow: 150,   freqHigh: 15000, category: "quality", color: "rgba(60,180,220,0.08)"  },
   { id: "timbre",     label: "Timbre",     freqLow: 20,    freqHigh: 1300,  category: "quality", color: "rgba(180,200,60,0.10)"  },

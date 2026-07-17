@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback, useId } from "react";
+import { useState, useCallback, useId, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { FRChart } from "./FRChart";
 import { ImportStatus } from "./HelpPanel";
+import { OnboardingModal } from "./OnboardingModal";
 import type { Trace, ImportResult } from "@/types/audio";
 import { PARAMETER_BANDS } from "@/lib/parameterBands";
 
@@ -35,8 +36,26 @@ export function AppShell() {
   const [loading, setLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState<string>("none");
+  const [hoveredBand, setHoveredBand] = useState<string | null>(null);
+  const [hoveredHz, setHoveredHz] = useState<number | null>(null);
+  const [isInteractiveGraph, setIsInteractiveGraph] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const uid = useId();
   let traceCounter = traces.length;
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hasSeen = localStorage.getItem('freqres_hasSeenOnboarding');
+      if (!hasSeen) {
+        setShowOnboarding(true);
+      }
+    }
+  }, []);
+
+  const handleCloseOnboarding = () => {
+    localStorage.setItem('freqres_hasSeenOnboarding', 'true');
+    setShowOnboarding(false);
+  };
 
   const handleImport = useCallback(async (url: string) => {
     setLoading(true);
@@ -136,6 +155,48 @@ export function AppShell() {
     });
   }, []);
 
+  const handleClearAllBands = useCallback(() => {
+    setEnabledBands(new Set());
+  }, []);
+
+  const handleClearCategory = useCallback((categoryId: string) => {
+    const categoryBands = PARAMETER_BANDS.filter(b => b.category === categoryId).map(b => b.id);
+    setEnabledBands(prev => {
+      const next = new Set(prev);
+      categoryBands.forEach(id => next.delete(id));
+      return next;
+    });
+  }, []);
+
+  const handleChartClick = useCallback((hz: number) => {
+    if (!isInteractiveGraph) return;
+    const matchingBands = PARAMETER_BANDS.filter(b => b.category !== "quality" && hz >= b.freqLow && hz <= b.freqHigh);
+    if (matchingBands.length === 0) return;
+    
+    setEnabledBands(prev => {
+      const next = new Set(prev);
+      const allEnabled = matchingBands.every(b => next.has(b.id));
+      if (allEnabled) {
+         matchingBands.forEach(b => next.delete(b.id));
+      } else {
+         matchingBands.forEach(b => next.add(b.id));
+      }
+      return next;
+    });
+  }, []);
+
+  const hoveredBandsOnly = new Set<string>();
+  if (hoveredBand && !enabledBands.has(hoveredBand)) hoveredBandsOnly.add(hoveredBand);
+  if (isInteractiveGraph && hoveredHz !== null) {
+     PARAMETER_BANDS.forEach(b => {
+       if (b.category !== "quality" && hoveredHz >= b.freqLow && hoveredHz <= b.freqHigh) {
+          if (!enabledBands.has(b.id)) {
+            hoveredBandsOnly.add(b.id);
+          }
+       }
+     });
+  }
+
   return (
     <div className="flex h-screen w-full bg-[var(--bg-base)] text-[var(--text-primary)]">
       <Sidebar
@@ -150,12 +211,17 @@ export function AppShell() {
         onLabelChange={handleLabelChange}
         onReorderTraces={handleReorderTraces}
         onToggleBand={handleToggleBand}
+        onClearAllBands={handleClearAllBands}
+        onClearCategory={handleClearCategory}
+        onHoverBand={setHoveredBand}
+        isInteractiveGraph={isInteractiveGraph}
+        onToggleInteractiveGraph={() => setIsInteractiveGraph(p => !p)}
         selectedTarget={selectedTarget}
         onSelectTarget={setSelectedTarget}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
-      <div className="flex-1 flex flex-col relative h-full bg-[var(--bg-base)] overflow-hidden">
+      <main className="flex-1 flex flex-col relative h-full bg-[var(--bg-base)] overflow-hidden">
         {/* Mobile Header */}
         <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           <div className="flex items-center gap-2">
@@ -177,15 +243,27 @@ export function AppShell() {
           </button>
         </div>
 
-        <div className="flex-1 min-h-[50vh]">
-          <FRChart traces={traces} enabledBands={enabledBands} selectedTarget={selectedTarget} />
+        <div 
+          className="flex-1 min-h-[50vh]"
+          onMouseLeave={() => setHoveredHz(null)}
+        >
+          <FRChart 
+            traces={traces} 
+            enabledBands={enabledBands} 
+            hoveredBands={hoveredBandsOnly}
+            selectedTarget={selectedTarget} 
+            onChartHover={setHoveredHz}
+            onChartClick={handleChartClick}
+          />
         </div>
         
         {/* Floating Toast Notification */}
         <div className="absolute bottom-4 left-4 right-4 md:bottom-6 md:left-auto md:right-6 z-40 shadow-lg md:max-w-[320px]">
           <ImportStatus result={lastResult} loading={loading} />
         </div>
-      </div>
+      </main>
+
+      {showOnboarding && <OnboardingModal onClose={handleCloseOnboarding} />}
     </div>
   );
 }
