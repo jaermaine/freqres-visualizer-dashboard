@@ -246,6 +246,11 @@ export function AppShell() {
         <div 
           className="flex-1 min-h-[50vh]"
           onMouseLeave={() => setHoveredHz(null)}
+          onClick={() => {
+            if (isInteractiveGraph && hoveredHz !== null) {
+              handleChartClick(hoveredHz);
+            }
+          }}
         >
           <FRChart 
             traces={traces} 
@@ -253,7 +258,6 @@ export function AppShell() {
             hoveredBands={hoveredBandsOnly}
             selectedTarget={selectedTarget} 
             onChartHover={setHoveredHz}
-            onChartClick={handleChartClick}
           />
         </div>
         

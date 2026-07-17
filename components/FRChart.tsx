@@ -13,7 +13,6 @@ interface Props {
   hoveredBands?: Set<string>;
   selectedTarget?: string;
   onChartHover?: (hz: number | null) => void;
-  onChartClick?: (hz: number) => void;
 }
 
 const CHART_BG   = "#0d0f14";
@@ -27,7 +26,7 @@ const X_MAX = Math.log10(20000);
 const Y_MIN = 30;
 const Y_MAX = 85;
 
-export function FRChart({ traces, enabledBands, hoveredBands = new Set(), selectedTarget, onChartHover, onChartClick }: Props) {
+export function FRChart({ traces, enabledBands, hoveredBands = new Set(), selectedTarget, onChartHover }: Props) {
   const visibleTraces = traces.filter((t) => t.visible && t.normalized.hz.length > 0);
 
   // Compute per-trace dB offset so each curve is centered around 60 dB
@@ -259,11 +258,6 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
       }}
       onUnhover={() => {
         if (onChartHover) onChartHover(null);
-      }}
-      onClick={(e) => {
-        if (e.points && e.points.length > 0 && onChartClick) {
-          onChartClick(e.points[0].x as number);
-        }
       }}
     />
   );
