@@ -68,14 +68,15 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
 
     // Apply Compensation (Delta plotting) if enabled
     if (isCompensated && targetObj) {
-      customData = [];
+      const cData: any[] = [];
       yVals = t.normalized.hz.map((hz, i) => {
         const traceAdjusted = t.normalized.db[i] - refMean;
         const targetInterp = interpolateTarget(hz);
         const delta = traceAdjusted - targetInterp;
-        customData.push(delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1));
+        cData.push(delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1));
         return 60 + delta;
       });
+      customData = cData;
     }
 
     return {

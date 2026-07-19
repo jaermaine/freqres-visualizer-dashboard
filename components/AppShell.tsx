@@ -113,6 +113,7 @@ export function AppShell() {
       return false;
     } catch (err: any) {
       setLastResult({ ok: false, code: "FETCH_ERROR", message: err.message || "Unknown error occurred" });
+      return false;
     } finally {
       setLoading(false);
     }
