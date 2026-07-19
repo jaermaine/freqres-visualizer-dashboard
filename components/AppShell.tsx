@@ -254,21 +254,6 @@ export function AppShell() {
   }, [handleImport]);
 
   // Serialization: Save to Local Storage on changes
-  if (!hasHydrated.current) {
-    return (
-      <div className="flex h-screen w-full bg-[var(--bg-base)]">
-        <div className="w-80 h-full border-r border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col gap-4 animate-pulse">
-          <div className="h-8 bg-[var(--bg-raised)] rounded w-3/4"></div>
-          <div className="h-20 bg-[var(--bg-raised)] rounded w-full"></div>
-          <div className="h-40 bg-[var(--bg-raised)] rounded w-full mt-4"></div>
-        </div>
-        <div className="flex-1 p-6 flex flex-col gap-4 animate-pulse">
-          <div className="h-10 bg-[var(--bg-raised)] rounded w-full"></div>
-          <div className="flex-1 bg-[var(--bg-raised)] rounded w-full"></div>
-        </div>
-      </div>
-    );
-  }
   useEffect(() => {
     if (!hasHydrated.current) return; // wait until hydrated before saving
     
@@ -503,6 +488,22 @@ export function AppShell() {
       return next;
     });
   }, []);
+
+  if (!hasHydrated.current) {
+    return (
+      <div className="flex h-screen w-full bg-[var(--bg-base)]">
+        <div className="w-80 h-full border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 flex flex-col gap-4 animate-pulse">
+          <div className="h-8 bg-[var(--bg-raised)] rounded w-3/4"></div>
+          <div className="h-20 bg-[var(--bg-raised)] rounded w-full"></div>
+          <div className="h-40 bg-[var(--bg-raised)] rounded w-full mt-4"></div>
+        </div>
+        <div className="flex-1 p-6 flex flex-col gap-4 animate-pulse">
+          <div className="h-10 bg-[var(--bg-raised)] rounded w-full"></div>
+          <div className="flex-1 bg-[var(--bg-raised)] rounded w-full"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full bg-[var(--bg-base)] text-[var(--text-primary)]">
