@@ -50,7 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       if (workspace && Array.isArray(workspace.urls) && workspace.urls.length > 0) {
         const names = extractNames(workspace.urls);
         if (names.length > 0) {
-          title = `📊 FreqRes: ${names.join(' vs ')}`;
+          title = `FreqRes: ${names.join(' vs ')}`;
           description = `Interactive frequency response comparison of ${names.length} trace${names.length > 1 ? 's' : ''}. Target: ${workspace.target || 'Harman'}`;
         }
       }
@@ -59,20 +59,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     console.error("Error generating metadata for shortlink:", error);
   }
 
+  // Use dynamic OG image from the database
+  const ogImageUrl = `https://freqres.vercel.app/api/og-image?id=${id}`;
+
   return {
     title,
     description,
     openGraph: {
       title,
       description,
-      // We will create a default banner image for the site
-      images: ['/og-banner.png'], 
+      images: [ogImageUrl], 
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: ['/og-banner.png'],
+      images: [ogImageUrl],
     }
   };
 }

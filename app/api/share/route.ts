@@ -43,6 +43,13 @@ export async function POST(req: NextRequest) {
     // Expiration: 3 days (259200 seconds)
     await redis.set(`workspace:${shortId}`, JSON.stringify(body), { ex: 259200 });
 
+    // Save the snapshot image if provided
+    if (body.image) {
+      // Strip out the base64 part so we save space (just the raw data)
+      const base64Data = body.image.replace(/^data:image\/png;base64,/, "");
+      await redis.set(`workspace_image:${shortId}`, base64Data, { ex: 259200 });
+    }
+
     return NextResponse.json({ id: shortId });
   } catch (error) {
     console.error("Failed to share workspace:", error);

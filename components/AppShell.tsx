@@ -230,12 +230,25 @@ export function AppShell() {
 
       const uniqueUrls = Array.from(new Set(urls));
 
+      let imageBase64 = null;
+      try {
+        const Plotly = (await import('plotly.js-dist-min')).default;
+        const graphDiv = document.querySelector('.js-plotly-plot') as HTMLElement;
+        if (graphDiv) {
+          // Generate a 1200x630 (standard OG size) snapshot of the graph
+          imageBase64 = await Plotly.toImage(graphDiv, {format: 'png', width: 1200, height: 630});
+        }
+      } catch (imgErr) {
+        console.error("Failed to capture graph image:", imgErr);
+      }
+
       const state = {
         urls: uniqueUrls,
         target: selectedTarget,
         bands: Array.from(enabledBands),
         compensated: isCompensated,
-        interactive: isInteractiveGraph
+        interactive: isInteractiveGraph,
+        ...(imageBase64 ? { image: imageBase64 } : {})
       };
 
       const res = await fetch('/api/share', {
