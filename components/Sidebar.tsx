@@ -29,6 +29,7 @@ interface Props {
   onSelectTarget: (id: string) => void;
   isCompensated: boolean;
   onToggleCompensated: () => void;
+  onShareWorkspace: () => void;
   isOpen?: boolean;
   onClose?: () => void;
 }
@@ -54,9 +55,17 @@ export function Sidebar({
   onSelectTarget,
   isCompensated,
   onToggleCompensated,
+  onShareWorkspace,
   isOpen,
   onClose,
 }: Props) {
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleShareClick = () => {
+    onShareWorkspace();
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
   const [url, setUrl] = useState("");
   const [cooldown, setCooldown] = useState(0);
 
@@ -116,6 +125,18 @@ export function Sidebar({
           FreqRes
         </span>
         <span className="ml-auto flex items-center gap-3">
+          <button 
+            onClick={handleShareClick}
+            className="label-xs hover:text-white transition-colors flex items-center gap-1 relative"
+            style={{ color: "var(--text-muted)" }}
+            title="Copy shareable workspace link"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            </svg>
+            Share
+            {isCopied && <span className="absolute -top-6 -left-3 bg-indigo-600 text-white px-2 py-0.5 rounded text-[10px] whitespace-nowrap shadow-lg">Copied!</span>}
+          </button>
           <Link
             href="/tutorial"
             className="label-xs hover:text-indigo-400 transition-colors"

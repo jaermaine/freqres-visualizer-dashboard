@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useId, useEffect } from "react";
+import { useState, useCallback, useId, useEffect, useRef } from "react";
 import { Sidebar } from "./Sidebar";
 import { FRChart } from "./FRChart";
 import { ImportStatus } from "./HelpPanel";
@@ -41,6 +41,7 @@ export function AppShell() {
   const [isInteractiveGraph, setIsInteractiveGraph] = useState(true);
   const [isCompensated, setIsCompensated] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const hasHydrated = useRef(false);
   const uid = useId();
   let traceCounter = traces.length;
 
@@ -110,17 +111,105 @@ export function AppShell() {
         return true;
       }
       return false;
-    } catch (e) {
-      setLastResult({
-        ok: false,
-        code: "FETCH_ERROR",
-        message: "Failed to contact the import API.",
-      });
-      return false;
+    } catch (err: any) {
+      setLastResult({ ok: false, code: "FETCH_ERROR", message: err.message || "Unknown error occurred" });
     } finally {
       setLoading(false);
     }
   }, [uid]);
+
+  // Initial Hydration: Check URL first, fallback to Local Storage
+  useEffect(() => {
+    if (typeof window === 'undefined' || hasHydrated.current) return;
+    hasHydrated.current = true;
+
+    const params = new URLSearchParams(window.location.search);
+    const workspaceParam = params.get('workspace');
+
+    if (workspaceParam) {
+      try {
+        const decoded = atob(workspaceParam);
+        const data = JSON.parse(decoded);
+        
+        if (data.target) setSelectedTarget(data.target);
+        if (data.compensated !== undefined) setIsCompensated(data.compensated);
+        if (data.bands) setEnabledBands(new Set(data.bands));
+        if (data.interactive !== undefined) setIsInteractiveGraph(data.interactive);
+        
+        if (data.urls && Array.isArray(data.urls)) {
+          // Batch fetch shared URLs sequentially to avoid backend rate-limiting/spamming
+          (async () => {
+            for (const url of data.urls) {
+              await handleImport(url);
+            }
+          })();
+        }
+        
+        // Clean up URL so it doesn't persist the giant base64 string
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch(e) {
+        console.error("Failed to parse shared workspace URL", e);
+      }
+    } else {
+      // Restore from Local Storage
+      const saved = localStorage.getItem('freqres_workspace');
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          if (data.traces) setTraces(data.traces);
+          if (data.bands) setEnabledBands(new Set(data.bands));
+          if (data.target) setSelectedTarget(data.target);
+          if (data.compensated !== undefined) setIsCompensated(data.compensated);
+          if (data.interactive !== undefined) setIsInteractiveGraph(data.interactive);
+        } catch(e) {
+          console.error("Failed to parse local storage workspace", e);
+        }
+      }
+    }
+  }, [handleImport]);
+
+  // Serialization: Save to Local Storage on changes
+  useEffect(() => {
+    if (!hasHydrated.current) return; // wait until hydrated before saving
+    
+    const stateToSave = {
+      traces,
+      bands: Array.from(enabledBands),
+      target: selectedTarget,
+      compensated: isCompensated,
+      interactive: isInteractiveGraph
+    };
+    localStorage.setItem('freqres_workspace', JSON.stringify(stateToSave));
+  }, [traces, enabledBands, selectedTarget, isCompensated, isInteractiveGraph]);
+
+  // URL Sharing
+  const handleShareWorkspace = useCallback(() => {
+    const urls = traces.map(t => {
+      if (t.source.kind === 'squiglink-share-url') {
+        // Use baseUrl to properly preserve subdirectories (e.g., https://host.squig.link/cables/)
+        return `${t.source.baseUrl}?share=${t.source.models.map(m => encodeURIComponent(m.raw)).join(',')}`;
+      }
+      if (t.source.kind === 'raw-measurement-file-url') {
+        return t.source.url;
+      }
+      return null;
+    }).filter(Boolean) as string[];
+
+    // Deduplicate URLs to prevent backend request spam
+    const uniqueUrls = Array.from(new Set(urls));
+
+    const state = {
+      urls: uniqueUrls,
+      target: selectedTarget,
+      bands: Array.from(enabledBands),
+      compensated: isCompensated,
+      interactive: isInteractiveGraph
+    };
+
+    const encoded = btoa(JSON.stringify(state));
+    const shareUrl = `${window.location.origin}${window.location.pathname}?workspace=${encoded}`;
+    navigator.clipboard.writeText(shareUrl);
+  }, [traces, selectedTarget, enabledBands, isCompensated, isInteractiveGraph]);
 
   const handleToggleTrace = useCallback((id: string) => {
     setTraces((prev) => prev.map((t) => t.id === id ? { ...t, visible: !t.visible } : t));
@@ -221,6 +310,7 @@ export function AppShell() {
         onSelectTarget={setSelectedTarget}
         isCompensated={isCompensated}
         onToggleCompensated={() => setIsCompensated(p => !p)}
+        onShareWorkspace={handleShareWorkspace}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
