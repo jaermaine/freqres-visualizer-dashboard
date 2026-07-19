@@ -25,6 +25,15 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
   const visibleTraces = traces.filter((t) => t.visible && t.normalized.hz.length > 0);
   const targetObj = TUNING_TARGETS.find(t => t.id === selectedTarget);
 
+  // Theme-aware colors
+  const CHART_BG   = theme === 'light' ? "#f8fafc" : "#0d0f14";
+  const GRID_COLOR = theme === 'light' ? "#e2e8f0" : "#1c2030";
+  const TEXT_COLOR = theme === 'light' ? "#64748b" : "#8892a4";
+  const ZERO_COLOR = theme === 'light' ? "#cbd5e1" : "#2a3048";
+  const TARGET_COLOR = theme === 'light' ? "#94a3b8" : "#aebbc9";
+  const LEGEND_BG = theme === 'light' ? "rgba(255,255,255,0.85)" : "rgba(13,15,20,0.85)";
+  const LEGEND_BORDER = theme === 'light' ? "#cbd5e1" : "#252b3a";
+
   // Log-linear interpolation for precise target dB matching at arbitrary frequencies
   const interpolateTarget = (hz: number): number => {
     if (!targetObj) return 0;
@@ -228,15 +237,6 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
       yTickText.push(`${db}`);
     }
   }
-
-  // Theme-aware colors
-  const CHART_BG   = theme === 'light' ? "#f8fafc" : "#0d0f14";
-  const GRID_COLOR = theme === 'light' ? "#e2e8f0" : "#1c2030";
-  const TEXT_COLOR = theme === 'light' ? "#64748b" : "#8892a4";
-  const ZERO_COLOR = theme === 'light' ? "#cbd5e1" : "#2a3048";
-  const TARGET_COLOR = theme === 'light' ? "#94a3b8" : "#aebbc9";
-  const LEGEND_BG = theme === 'light' ? "rgba(255,255,255,0.85)" : "rgba(13,15,20,0.85)";
-  const LEGEND_BORDER = theme === 'light' ? "#cbd5e1" : "#252b3a";
 
   const layout: any = {
     shapes: bandShapes,
