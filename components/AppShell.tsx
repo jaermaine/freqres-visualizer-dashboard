@@ -5,6 +5,7 @@ import { Sidebar } from "./Sidebar";
 import { FRChart } from "./FRChart";
 import { ImportStatus } from "./HelpPanel";
 import { OnboardingModal } from "./OnboardingModal";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import type { Trace, ImportResult } from "@/types/audio";
 import { PARAMETER_BANDS } from "@/lib/parameterBands";
 
@@ -76,12 +77,13 @@ export function AppShell() {
   const [isCopied, setIsCopied] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [savedWorkspaces, setSavedWorkspaces] = useState<Record<string, any>>({});
   const hasHydrated = useRef(false);
   const uid = useId();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const hasSeen = localStorage.getItem('freqres_hasSeenOnboarding');
+      const hasSeen = localStorage.getItem('freqres_hasSeenOnboarding') === 'true';
       if (!hasSeen) {
         setShowOnboarding(true);
       }
@@ -94,6 +96,15 @@ export function AppShell() {
         const initialTheme = prefersLight ? 'light' : 'dark';
         setTheme(initialTheme);
         document.documentElement.className = `theme-${initialTheme}`;
+      }
+
+      const workspacesStr = localStorage.getItem('freqres_saved_workspaces');
+      if (workspacesStr) {
+        try {
+          setSavedWorkspaces(JSON.parse(workspacesStr));
+        } catch (e) {
+          console.error("Failed to parse saved workspaces", e);
+        }
       }
     }
   }, []);
@@ -458,38 +469,79 @@ export function AppShell() {
     document.documentElement.className = `theme-${newTheme}`;
   };
 
+  const handleSaveWorkspace = useCallback((name: string) => {
+    const state = {
+      traces,
+      bands: Array.from(enabledBands),
+      target: selectedTarget,
+      compensated: isCompensated,
+      interactive: isInteractiveGraph
+    };
+    setSavedWorkspaces(prev => {
+      const next = { ...prev, [name]: state };
+      localStorage.setItem('freqres_saved_workspaces', JSON.stringify(next));
+      return next;
+    });
+  }, [traces, enabledBands, selectedTarget, isCompensated, isInteractiveGraph]);
+
+  const handleLoadWorkspace = useCallback((name: string) => {
+    const ws = savedWorkspaces[name];
+    if (!ws) return;
+    
+    if (ws.traces) setTraces(ws.traces);
+    if (ws.bands) setEnabledBands(new Set(ws.bands));
+    if (ws.target !== undefined) setSelectedTarget(ws.target);
+    if (ws.compensated !== undefined) setIsCompensated(ws.compensated);
+    if (ws.interactive !== undefined) setIsInteractiveGraph(ws.interactive);
+  }, [savedWorkspaces, setTraces]);
+
+  const handleDeleteWorkspace = useCallback((name: string) => {
+    setSavedWorkspaces(prev => {
+      const next = { ...prev };
+      delete next[name];
+      localStorage.setItem('freqres_saved_workspaces', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   return (
     <div className="flex h-screen w-full bg-[var(--bg-base)] text-[var(--text-primary)]">
-      <Sidebar
-        traces={traces}
-        enabledBands={enabledBands}
-        lastResult={lastResult}
-        loading={loading}
-        onImport={handleImport}
-        onToggleTrace={handleToggleTrace}
-        onRemoveTrace={handleRemoveTrace}
-        onColorChange={handleColorChange}
-        onLabelChange={handleLabelChange}
-        onNoteChange={handleNoteChange}
-        onReorderTraces={handleReorderTraces}
-        onToggleBand={handleToggleBand}
-        onClearAllBands={handleClearAllBands}
-        onClearCategory={handleClearCategory}
-        onHoverBand={setHoveredBand}
-        isInteractiveGraph={isInteractiveGraph}
-        onToggleInteractiveGraph={() => setIsInteractiveGraph(p => !p)}
-        selectedTarget={selectedTarget}
-        onSelectTarget={setSelectedTarget}
-        isCompensated={isCompensated}
-        onToggleCompensated={() => setIsCompensated(p => !p)}
-        onShareWorkspace={handleShareWorkspace}
-        isCopied={isCopied}
-        isSharing={isSharing}
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-      />
+      <ErrorBoundary>
+        <Sidebar
+          traces={traces}
+          enabledBands={enabledBands}
+          lastResult={lastResult}
+          loading={loading}
+          onImport={handleImport}
+          onToggleTrace={handleToggleTrace}
+          onRemoveTrace={handleRemoveTrace}
+          onColorChange={handleColorChange}
+          onLabelChange={handleLabelChange}
+          onNoteChange={handleNoteChange}
+          onReorderTraces={handleReorderTraces}
+          onToggleBand={handleToggleBand}
+          onClearAllBands={handleClearAllBands}
+          onClearCategory={handleClearCategory}
+          onHoverBand={setHoveredBand}
+          isInteractiveGraph={isInteractiveGraph}
+          onToggleInteractiveGraph={() => setIsInteractiveGraph(p => !p)}
+          selectedTarget={selectedTarget}
+          onSelectTarget={setSelectedTarget}
+          isCompensated={isCompensated}
+          onToggleCompensated={() => setIsCompensated(p => !p)}
+          onShareWorkspace={handleShareWorkspace}
+          isCopied={isCopied}
+          isSharing={isSharing}
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          savedWorkspaces={savedWorkspaces}
+          onSaveWorkspace={handleSaveWorkspace}
+          onLoadWorkspace={handleLoadWorkspace}
+          onDeleteWorkspace={handleDeleteWorkspace}
+        />
+      </ErrorBoundary>
       <main className="flex-1 flex flex-col relative h-full bg-[var(--bg-base)] overflow-hidden">
         {/* Mobile Header */}
         <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
@@ -521,15 +573,17 @@ export function AppShell() {
             }
           }}
         >
-          <FRChart 
-            traces={traces} 
-            enabledBands={enabledBands} 
-            hoveredBands={hoveredBandsOnly}
-            selectedTarget={selectedTarget} 
-            isCompensated={isCompensated}
-            onChartHover={setHoveredHz}
-            theme={theme}
-          />
+          <ErrorBoundary>
+            <FRChart 
+              traces={traces} 
+              enabledBands={enabledBands} 
+              hoveredBands={hoveredBandsOnly}
+              selectedTarget={selectedTarget} 
+              isCompensated={isCompensated}
+              onChartHover={setHoveredHz}
+              theme={theme}
+            />
+          </ErrorBoundary>
         </div>
         
         {/* Floating Toast Notification */}

@@ -32,6 +32,7 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
         onChange={() => onToggle(trace.id)}
         className="w-3.5 h-3.5 accent-indigo-500 flex-shrink-0"
         id={`trace-vis-${trace.id}`}
+        aria-label={`Toggle visibility for ${trace.label}`}
       />
       <input
         type="color"
@@ -39,6 +40,7 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
         onChange={(e) => onColorChange(trace.id, e.target.value)}
         className="w-5 h-5 rounded cursor-pointer flex-shrink-0 border-0 bg-transparent p-0"
         title="Change color"
+        aria-label={`Change color for ${trace.label}`}
       />
       <input
         type="text"
@@ -46,11 +48,13 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
         onChange={(e) => onLabelChange(trace.id, e.target.value)}
         className="flex-1 min-w-0 bg-transparent text-sm text-slate-200 outline-none"
         style={{ fontFamily: "Inter, sans-serif" }}
+        aria-label="Trace label"
       />
         <button
           onClick={() => setShowNotes(!showNotes)}
           className="text-slate-500 hover:text-[var(--text-primary)] flex-shrink-0 text-sm leading-none"
           title="Toggle notes"
+          aria-label={`Toggle notes for ${trace.label}`}
         >
           ✎
         </button>
@@ -71,6 +75,7 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
             value={trace.notes || ""}
             onChange={(e) => onNoteChange(trace.id, e.target.value)}
             className="w-full bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded px-2 py-1 text-xs text-[var(--text-secondary)] outline-none focus:border-[var(--accent)]"
+            aria-label={`Notes for ${trace.label}`}
           />
         </div>
       )}
@@ -101,7 +106,7 @@ export function TraceList({ traces, onToggle, onRemove, onColorChange, onLabelCh
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1" role="list" aria-label="Trace list">
       {traces.map((t, index) => {
         const isDragging = draggedIdx === index;
         const isDragOver = dragOverIdx === index && draggedIdx !== null && draggedIdx !== index;
@@ -110,6 +115,7 @@ export function TraceList({ traces, onToggle, onRemove, onColorChange, onLabelCh
         return (
           <div
             key={t.id}
+            role="listitem"
             draggable
             onDragStart={(e) => {
               setDraggedIdx(index);

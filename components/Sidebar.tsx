@@ -37,6 +37,10 @@ interface Props {
   onClose?: () => void;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
+  savedWorkspaces: Record<string, any>;
+  onSaveWorkspace: (name: string) => void;
+  onLoadWorkspace: (name: string) => void;
+  onDeleteWorkspace: (name: string) => void;
 }
 
 export function Sidebar({
@@ -68,9 +72,38 @@ export function Sidebar({
   onClose,
   theme,
   onToggleTheme,
+  savedWorkspaces,
+  onSaveWorkspace,
+  onLoadWorkspace,
+  onDeleteWorkspace,
 }: Props) {
   const [url, setUrl] = useState("");
   const [cooldown, setCooldown] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState("");
+
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+        const data = await res.json();
+        setSearchResults(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -171,7 +204,39 @@ export function Sidebar({
         </span>
       </div>
 
-      <div className="flex flex-col gap-4 p-3 flex-1">
+      <div className="flex flex-col gap-4 p-3 flex-1 overflow-y-auto">
+        {/* Search Database */}
+        <section className="relative">
+          <p className="label-xs mb-1.5">Search Databases (Squiglink)</p>
+          <input
+            type="text"
+            className="flex-1 w-full bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+            placeholder="Type IEM name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {isSearching && <p className="text-xs text-[var(--text-muted)] mt-1">Searching...</p>}
+          {searchResults.length > 0 && (
+            <ul className="absolute z-10 top-[60px] left-0 w-full bg-[var(--bg-surface)] border border-[var(--border)] rounded shadow-lg max-h-48 overflow-y-auto">
+              {searchResults.map((result) => (
+                <li key={result.id}>
+                  <button
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border-b border-[var(--border-subtle)]"
+                    onClick={() => {
+                      setUrl(prev => prev ? prev + '\n' + result.url : result.url);
+                      setSearchQuery("");
+                      setSearchResults([]);
+                    }}
+                  >
+                    <span className="font-semibold block">{result.name}</span>
+                    <span className="text-xs text-[var(--text-muted)] block">{result.source}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
         {/* URL Input */}
         <section>
           <p className="label-xs mb-1.5">Import URL</p>
@@ -196,6 +261,50 @@ export function Sidebar({
         </section>
 
         <hr className="divider" />
+
+        {/* Workspace Management */}
+        <section className="mt-2 border-t border-[var(--border-subtle)] pt-4">
+          <p className="label-xs mb-1.5">Saved Workspaces</p>
+          <div className="flex gap-2 mb-2">
+            <input
+              type="text"
+              value={newWorkspaceName}
+              onChange={(e) => setNewWorkspaceName(e.target.value)}
+              placeholder="Workspace name..."
+              className="flex-1 bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded px-2 py-1 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+            />
+            <button
+              onClick={() => {
+                if (newWorkspaceName.trim()) {
+                  onSaveWorkspace(newWorkspaceName.trim());
+                  setNewWorkspaceName("");
+                }
+              }}
+              className="btn-primary px-3 py-1 text-xs"
+            >
+              Save
+            </button>
+          </div>
+          <div className="flex flex-col gap-1 max-h-32 overflow-y-auto">
+            {Object.keys(savedWorkspaces).map((name) => (
+              <div key={name} className="flex items-center justify-between bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded px-2 py-1.5">
+                <button
+                  className="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--accent)] truncate flex-1 text-left"
+                  onClick={() => onLoadWorkspace(name)}
+                >
+                  {name}
+                </button>
+                <button
+                  className="text-xs text-red-400 hover:text-red-500 ml-2"
+                  onClick={() => onDeleteWorkspace(name)}
+                  aria-label={`Delete workspace ${name}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {/* Traces */}
         <section>
