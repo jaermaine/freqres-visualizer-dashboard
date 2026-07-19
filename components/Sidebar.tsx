@@ -221,8 +221,10 @@ export function Sidebar({
               {searchResults.map((result) => (
                 <li key={result.id}>
                   <button
+                    type="button"
                     className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border-b border-[var(--border-subtle)]"
-                    onClick={() => {
+                    onMouseDown={(e) => {
+                      e.preventDefault();
                       setUrl(prev => prev ? prev + '\n' + result.url : result.url);
                       setSearchQuery("");
                       setSearchResults([]);

@@ -13,17 +13,10 @@ import { PARAMETER_BANDS } from "@/lib/parameterBands";
 const PALETTE = [
   "#ffffff", // White
   "#ff00aa", // Neon Pink
-  "#00ffcc", // Neon Teal
-  "#ffea00", // Neon Yellow
-  "#b700ff", // Neon Purple
-  "#ff4d00", // Neon Orange
-  "#00d4ff", // Neon Blue
-  "#a2ff00", // Neon Lime
-  "#ff88a8", // Light Pink
-  "#88b3ff", // Light Blue
-];
+import { PALETTE } from '@/lib/colors';
 
-function nextColor(traces: Trace[]): string {
+function getAvailableColor(traces: Trace[], currentLabel: string, theme: string): string {
+  if (currentLabel.toLowerCase().includes("target")) return theme === 'light' ? "#334155" : "#ffffff";
   const usedColors = new Set(traces.map(t => t.color));
   const availableColor = PALETTE.find(c => !usedColors.has(c));
   // If all colors in the palette are in use, fallback to cyclical assignment
@@ -32,37 +25,43 @@ function nextColor(traces: Trace[]): string {
 
 export function AppShell() {
   const [tracesRaw, setTracesRaw] = useState<Trace[]>([]);
-  const [history, setHistory] = useState<Trace[][]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [history, setHistory] = useState<{stack: Trace[][], index: number}>({ stack: [], index: -1 });
 
   const setTraces = useCallback((action: Trace[] | ((prev: Trace[]) => Trace[])) => {
     setTracesRaw((prev) => {
       const next = typeof action === 'function' ? action(prev) : action;
       if (next !== prev) {
-        setHistory((h) => {
-          const upToCurrent = h.slice(0, historyIndex + 1);
-          const newHistory = [...upToCurrent, next].slice(-50);
-          setHistoryIndex(newHistory.length - 1);
-          return newHistory;
+        setHistory((hs) => {
+          const upToCurrent = hs.stack.slice(0, hs.index + 1);
+          const newStack = [...upToCurrent, next].slice(-50);
+          return { stack: newStack, index: newStack.length - 1 };
         });
       }
       return next;
     });
-  }, [historyIndex]);
+  }, []);
 
   const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      setHistoryIndex(i => i - 1);
-      setTracesRaw(history[historyIndex - 1]);
-    }
-  }, [history, historyIndex]);
+    setHistory((hs) => {
+      if (hs.index > 0) {
+        const newIndex = hs.index - 1;
+        setTracesRaw(hs.stack[newIndex]);
+        return { ...hs, index: newIndex };
+      }
+      return hs;
+    });
+  }, []);
 
   const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      setHistoryIndex(i => i + 1);
-      setTracesRaw(history[historyIndex + 1]);
-    }
-  }, [history, historyIndex]);
+    setHistory((hs) => {
+      if (hs.index < hs.stack.length - 1) {
+        const newIndex = hs.index + 1;
+        setTracesRaw(hs.stack[newIndex]);
+        return { ...hs, index: newIndex };
+      }
+      return hs;
+    });
+  }, []);
 
   const traces = tracesRaw;
   const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set());
@@ -78,7 +77,7 @@ export function AppShell() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [savedWorkspaces, setSavedWorkspaces] = useState<Record<string, any>>({});
-  const hasHydrated = useRef(false);
+  const [hasHydrated, setHasHydrated] = useState(false);
   const uid = useId();
 
   useEffect(() => {
@@ -132,31 +131,30 @@ export function AppShell() {
         setTraces((prev) => {
           let currentTraces = [...prev];
           data.curves.forEach((curve) => {
-            const isDuplicate = currentTraces.some((t) => {
+            const isDuplicate = currentTraces.some(t => {
               if (t.label !== curve.label) return false;
               if (t.source.kind !== data.source.kind) return false;
-              if (t.source.kind === "squiglink-share-url" && data.source.kind === "squiglink-share-url") {
+              if (t.source.kind === 'squiglink') {
                 return t.source.host === data.source.host;
               }
-              if (t.source.kind === "hangout-graph-url" && data.source.kind === "hangout-graph-url") {
+              if (t.source.kind === 'hangout') {
                 return t.source.rigId === data.source.rigId;
               }
-              if (t.source.kind === "raw-measurement-file-url" && data.source.kind === "raw-measurement-file-url") {
+              if (t.source.kind === 'raw') {
                 return t.source.url === data.source.url;
               }
               return false;
             });
             if (isDuplicate) return;
 
-            const newTrace: Trace = {
+            currentTraces.push({
               id: `${uid}-${Date.now()}-${currentTraces.length}`,
               label: curve.label,
-              color: nextColor(currentTraces),
+              color: getAvailableColor(currentTraces, curve.label, theme),
               normalized: curve.normalized,
               source: data.source,
               visible: true,
-            };
-            currentTraces.push(newTrace);
+            });
           });
           return currentTraces;
         });
@@ -174,12 +172,12 @@ export function AppShell() {
     } finally {
       setLoading(false);
     }
-  }, [uid]);
+  }, [uid, theme]);
 
   // Initial Hydration: Check URL first, fallback to Local Storage
   useEffect(() => {
-    if (typeof window === 'undefined' || hasHydrated.current) return;
-    hasHydrated.current = true;
+    if (typeof window === 'undefined' || hasHydrated) return;
+    setHasHydrated(true);
 
     const searchParams = new URLSearchParams(window.location.search);
       // --- 1. First, check for a Shortlink ID `?s=` ---
@@ -257,7 +255,7 @@ export function AppShell() {
 
   // Serialization: Save to Local Storage on changes
   useEffect(() => {
-    if (!hasHydrated.current) return; // wait until hydrated before saving
+    if (!hasHydrated) return; // wait until hydrated before saving
     
     const stateToSave = {
       traces,
@@ -492,7 +490,7 @@ export function AppShell() {
     });
   }, []);
 
-  if (!hasHydrated.current) {
+  if (!hasHydrated) {
     return (
       <div className="flex h-screen w-full bg-[var(--bg-base)]">
         <div className="w-80 h-full border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 flex flex-col gap-4 animate-pulse">
