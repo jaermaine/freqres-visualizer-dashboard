@@ -90,12 +90,14 @@ export function AppShell() {
       const savedTheme = localStorage.getItem("freqres_theme");
       if (savedTheme === 'light' || savedTheme === 'dark') {
         setTheme(savedTheme);
-        document.documentElement.className = `theme-${savedTheme}`;
+        document.documentElement.classList.remove('theme-light', 'theme-dark');
+        document.documentElement.classList.add(`theme-${savedTheme}`);
       } else {
         const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
         const initialTheme = prefersLight ? 'light' : 'dark';
         setTheme(initialTheme);
-        document.documentElement.className = `theme-${initialTheme}`;
+        document.documentElement.classList.remove('theme-light', 'theme-dark');
+        document.documentElement.classList.add(`theme-${initialTheme}`);
       }
 
       const workspacesStr = localStorage.getItem('freqres_saved_workspaces');
@@ -451,7 +453,8 @@ export function AppShell() {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
     localStorage.setItem('freqres_theme', newTheme);
-    document.documentElement.className = `theme-${newTheme}`;
+    document.documentElement.classList.remove('theme-light', 'theme-dark');
+    document.documentElement.classList.add(`theme-${newTheme}`);
   };
 
   const handleSaveWorkspace = useCallback((name: string) => {
