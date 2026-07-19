@@ -74,6 +74,8 @@ export function AppShell() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [savedWorkspaces, setSavedWorkspaces] = useState<Record<string, any>>({});
   const [hasHydrated, setHasHydrated] = useState(false);
+  const [fetchingShared, setFetchingShared] = useState(false);
+  const [linkExpired, setLinkExpired] = useState(false);
   const uid = useId();
 
   useEffect(() => {
@@ -176,9 +178,9 @@ export function AppShell() {
     setHasHydrated(true);
 
     const searchParams = new URLSearchParams(window.location.search);
-      // --- 1. First, check for a Shortlink ID `?s=` ---
       const shortId = searchParams.get('s');
       if (shortId) {
+        setFetchingShared(true);
         fetch(`/api/workspace?id=${shortId}`)
           .then(res => res.json())
           .then(result => {
@@ -194,11 +196,21 @@ export function AppShell() {
                   for (const url of data.urls) {
                     await handleImport(url);
                   }
+                  setFetchingShared(false);
                 })();
+              } else {
+                setFetchingShared(false);
               }
+            } else {
+              setLinkExpired(true);
+              setFetchingShared(false);
             }
           })
-          .catch(err => console.error("Failed to load shortlink workspace:", err))
+          .catch(err => {
+            console.error("Failed to load shortlink workspace:", err);
+            setLinkExpired(true);
+            setFetchingShared(false);
+          })
           .finally(() => {
             window.history.replaceState({}, '', '/');
           });
@@ -486,7 +498,7 @@ export function AppShell() {
     });
   }, []);
 
-  if (!hasHydrated) {
+  if (!hasHydrated || fetchingShared) {
     return (
       <div className="flex h-screen w-full bg-[var(--bg-base)]">
         <div className="w-80 h-full border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 flex flex-col gap-4 animate-pulse">
@@ -497,6 +509,22 @@ export function AppShell() {
         <div className="flex-1 p-6 flex flex-col gap-4 animate-pulse">
           <div className="h-10 bg-[var(--bg-raised)] rounded w-full"></div>
           <div className="flex-1 bg-[var(--bg-raised)] rounded w-full"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (linkExpired) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen w-full bg-[var(--bg-base)] text-[var(--text-primary)]">
+        <div className="p-8 panel max-w-md text-center flex flex-col items-center gap-4">
+          <h1 className="text-2xl font-bold">Link Expired</h1>
+          <p className="text-[var(--text-secondary)]">This shared workspace link has expired. Shared links are automatically purged after 3 days to free up space.</p>
+          <button 
+            onClick={() => setLinkExpired(false)} 
+            className="btn-primary mt-2">
+            Create a New Comparison
+          </button>
         </div>
       </div>
     );
