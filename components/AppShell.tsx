@@ -398,7 +398,7 @@ export function AppShell() {
       next.splice(hoverIndex, 0, dragged);
       return next;
     });
-  }, []);
+  };
 
   const handleToggleBand = useCallback((bandId: string) => {
     setEnabledBands((prev) => {
