@@ -40,6 +40,7 @@ export function AppShell() {
   const [hoveredHz, setHoveredHz] = useState<number | null>(null);
   const [isInteractiveGraph, setIsInteractiveGraph] = useState(true);
   const [isCompensated, setIsCompensated] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const hasHydrated = useRef(false);
   const uid = useId();
@@ -124,34 +125,63 @@ export function AppShell() {
     if (typeof window === 'undefined' || hasHydrated.current) return;
     hasHydrated.current = true;
 
-    const params = new URLSearchParams(window.location.search);
-    const workspaceParam = params.get('workspace');
-
-    if (workspaceParam) {
-      try {
-        const decoded = atob(workspaceParam);
-        const data = JSON.parse(decoded);
-        
-        if (data.target) setSelectedTarget(data.target);
-        if (data.compensated !== undefined) setIsCompensated(data.compensated);
-        if (data.bands) setEnabledBands(new Set(data.bands));
-        if (data.interactive !== undefined) setIsInteractiveGraph(data.interactive);
-        
-        if (data.urls && Array.isArray(data.urls)) {
-          // Batch fetch shared URLs sequentially to avoid backend rate-limiting/spamming
-          (async () => {
-            for (const url of data.urls) {
-              await handleImport(url);
+    const searchParams = new URLSearchParams(window.location.search);
+      // --- 1. First, check for a Shortlink ID `?s=` ---
+      const shortId = searchParams.get('s');
+      if (shortId) {
+        fetch(`/api/workspace?id=${shortId}`)
+          .then(res => res.json())
+          .then(result => {
+            if (result.workspace) {
+              const data = result.workspace;
+              if (data.target) setSelectedTarget(data.target);
+              if (data.bands) setEnabledBands(new Set(data.bands));
+              if (data.compensated !== undefined) setIsCompensated(data.compensated);
+              if (data.interactive !== undefined) setIsInteractiveGraph(data.interactive);
+              
+              if (data.urls && Array.isArray(data.urls)) {
+                (async () => {
+                  for (const url of data.urls) {
+                    await handleImport(url);
+                  }
+                })();
+              }
             }
-          })();
-        }
-        
-        // Clean up URL so it doesn't persist the giant base64 string
-        window.history.replaceState({}, document.title, window.location.pathname);
-      } catch(e) {
-        console.error("Failed to parse shared workspace URL", e);
+          })
+          .catch(err => console.error("Failed to load shortlink workspace:", err))
+          .finally(() => {
+            window.history.replaceState({}, '', '/');
+          });
+        return; // Hydration complete via shortlink
       }
-    } else {
+
+      // --- 2. Legacy fallback for Base64 `?workspace=` (keeps old links working) ---
+      const workspaceBase64 = searchParams.get('workspace');
+      if (workspaceBase64) {
+        try {
+          const jsonStr = atob(workspaceBase64);
+          const data = JSON.parse(jsonStr);
+          
+          if (data.target) setSelectedTarget(data.target);
+          if (data.bands) setEnabledBands(new Set(data.bands));
+          if (data.compensated !== undefined) setIsCompensated(data.compensated);
+          if (data.interactive !== undefined) setIsInteractiveGraph(data.interactive);
+          
+          if (data.urls && Array.isArray(data.urls)) {
+            (async () => {
+              for (const url of data.urls) {
+                await handleImport(url);
+              }
+            })();
+          }
+          
+          // Clean up URL
+          window.history.replaceState({}, '', '/');
+          return;
+        } catch (e) {
+          console.error("Failed to parse base64 workspace URL", e);
+        }
+      } else {
       // Restore from Local Storage
       const saved = localStorage.getItem('freqres_workspace');
       if (saved) {
@@ -183,33 +213,51 @@ export function AppShell() {
     localStorage.setItem('freqres_workspace', JSON.stringify(stateToSave));
   }, [traces, enabledBands, selectedTarget, isCompensated, isInteractiveGraph]);
 
-  // URL Sharing
-  const handleShareWorkspace = useCallback(() => {
-    const urls = traces.map(t => {
-      if (t.source.kind === 'squiglink-share-url') {
-        // Use baseUrl to properly preserve subdirectories (e.g., https://host.squig.link/cables/)
-        return `${t.source.baseUrl}?share=${t.source.models.map(m => encodeURIComponent(m.raw)).join(',')}`;
-      }
-      if (t.source.kind === 'raw-measurement-file-url') {
-        return t.source.url;
-      }
-      return null;
-    }).filter(Boolean) as string[];
+  // URL Sharing (Database Shortlink)
+  const [isSharing, setIsSharing] = useState(false);
+  const handleShareWorkspace = useCallback(async () => {
+    setIsSharing(true);
+    try {
+      const urls = traces.map(t => {
+        if (t.source.kind === 'squiglink-share-url') {
+          return `${t.source.baseUrl}?share=${t.source.models.map(m => encodeURIComponent(m.raw)).join(',')}`;
+        }
+        if (t.source.kind === 'raw-measurement-file-url') {
+          return t.source.url;
+        }
+        return null;
+      }).filter(Boolean) as string[];
 
-    // Deduplicate URLs to prevent backend request spam
-    const uniqueUrls = Array.from(new Set(urls));
+      const uniqueUrls = Array.from(new Set(urls));
 
-    const state = {
-      urls: uniqueUrls,
-      target: selectedTarget,
-      bands: Array.from(enabledBands),
-      compensated: isCompensated,
-      interactive: isInteractiveGraph
-    };
+      const state = {
+        urls: uniqueUrls,
+        target: selectedTarget,
+        bands: Array.from(enabledBands),
+        compensated: isCompensated,
+        interactive: isInteractiveGraph
+      };
 
-    const encoded = btoa(JSON.stringify(state));
-    const shareUrl = `${window.location.origin}${window.location.pathname}?workspace=${encoded}`;
-    navigator.clipboard.writeText(shareUrl);
+      const res = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state),
+      });
+
+      if (!res.ok) throw new Error("Failed to generate shortlink");
+      const { id } = await res.json();
+      
+      const shareUrl = `${window.location.origin}/s/${id}`;
+      await navigator.clipboard.writeText(shareUrl);
+      
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error("Share error:", err);
+      alert("Failed to generate share link. Please try again.");
+    } finally {
+      setIsSharing(false);
+    }
   }, [traces, selectedTarget, enabledBands, isCompensated, isInteractiveGraph]);
 
   const handleToggleTrace = useCallback((id: string) => {
@@ -312,6 +360,8 @@ export function AppShell() {
         isCompensated={isCompensated}
         onToggleCompensated={() => setIsCompensated(p => !p)}
         onShareWorkspace={handleShareWorkspace}
+        isCopied={isCopied}
+        isSharing={isSharing}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />

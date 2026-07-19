@@ -30,6 +30,8 @@ interface Props {
   isCompensated: boolean;
   onToggleCompensated: () => void;
   onShareWorkspace: () => void;
+  isCopied: boolean;
+  isSharing?: boolean;
   isOpen?: boolean;
   onClose?: () => void;
 }
@@ -56,16 +58,11 @@ export function Sidebar({
   isCompensated,
   onToggleCompensated,
   onShareWorkspace,
+  isCopied,
+  isSharing,
   isOpen,
   onClose,
 }: Props) {
-  const [isCopied, setIsCopied] = useState(false);
-
-  const handleShareClick = () => {
-    onShareWorkspace();
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
-  };
   const [url, setUrl] = useState("");
   const [cooldown, setCooldown] = useState(0);
 
@@ -126,15 +123,22 @@ export function Sidebar({
         </span>
         <span className="ml-auto flex items-center gap-3">
           <button 
-            onClick={handleShareClick}
-            className="label-xs hover:text-white transition-colors flex items-center gap-1 relative"
+            onClick={onShareWorkspace}
+            disabled={isSharing}
+            className="label-xs hover:text-white transition-colors flex items-center gap-1 relative disabled:opacity-50"
             style={{ color: "var(--text-muted)" }}
             title="Copy shareable workspace link"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-            </svg>
-            Share
+            {isSharing ? (
+              <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              </svg>
+            )}
+            {isSharing ? 'Saving...' : 'Share'}
             {isCopied && <span className="absolute -top-6 -left-3 bg-indigo-600 text-white px-2 py-0.5 rounded text-[10px] whitespace-nowrap shadow-lg">Copied!</span>}
           </button>
           <Link
