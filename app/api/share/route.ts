@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     // Save the snapshot image if provided
     if (body.image) {
       // Strip out the base64 part so we save space (just the raw data)
-      const base64Data = body.image.replace(/^data:image\/png;base64,/, "");
+      const base64Data = body.image.replace(/^data:image\/\w+;base64,/, "");
       await redis.set(`workspace_image:${shortId}`, base64Data, { ex: 259200 });
     }
 

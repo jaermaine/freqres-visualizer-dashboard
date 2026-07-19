@@ -2,18 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root, .theme-dark {
   --bg-base: #0d0f14;
-  --bg-surface: #13161e;
-  --bg-raised: #1a1e28;
-  --bg-hover: #1f2433;
-  --border: #252b3a;
+  --bg-surface: #13161f;
+  --bg-raised: #1c2030;
+  --bg-hover: #252b3a;
+  
+  --border: #2a3048;
   --border-subtle: #1c2030;
+  
   --text-primary: #f8fafc;
   --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
+  --text-muted: #8892a4;
+
   --accent: #6366f1;
-  --accent-dim: #4f46e5;
+  --accent-dim: rgba(99, 102, 241, 0.15);
+  
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+}
+
+.theme-light {
+  --bg-base: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-raised: #e2e8f0;
+  --bg-hover: #f1f5f9;
+  
+  --border: #cbd5e1;
+  --border-subtle: #e2e8f0;
+  
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+
+  --accent: #4f46e5;
+  --accent-dim: rgba(79, 70, 229, 0.1);
+  
   --success: #10b981;
   --warning: #f59e0b;
   --error: #ef4444;
@@ -110,3 +135,17 @@ html, body {
 
 /* Plotly override to match dark theme */
 .js-plotly-plot .plotly .main-svg { background: transparent !important; }
+
+/* Animated Trace Drawing */
+@keyframes drawTrace {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.js-plotly-plot .scatterlayer .trace {
+  animation: drawTrace 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}

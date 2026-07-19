@@ -14,18 +14,14 @@ interface Props {
   selectedTarget?: string;
   isCompensated?: boolean;
   onChartHover?: (hz: number | null) => void;
+  theme?: 'dark' | 'light';
 }
-
-const CHART_BG   = "#0d0f14";
-const GRID_COLOR = "#1c2030";
-const TEXT_COLOR = "#8892a4";
-const ZERO_COLOR = "#2a3048";
 
 // Standard FR chart range: 20–20 kHz on X
 const X_MIN = Math.log10(20);
 const X_MAX = Math.log10(20000);
 
-export function FRChart({ traces, enabledBands, hoveredBands = new Set(), selectedTarget, isCompensated, onChartHover }: Props) {
+export function FRChart({ traces, enabledBands, hoveredBands = new Set(), selectedTarget, isCompensated, onChartHover, theme = 'dark' }: Props) {
   const visibleTraces = traces.filter((t) => t.visible && t.normalized.hz.length > 0);
   const targetObj = TUNING_TARGETS.find(t => t.id === selectedTarget);
 
@@ -206,7 +202,7 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
       mode: "lines",
       name: `Target: ${targetObj.label}`,
       line: {
-        color: "#aebbc9",
+        color: TARGET_COLOR,
         width: 3,
         dash: "longdash",
         shape: "spline",
@@ -233,6 +229,15 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
     }
   }
 
+  // Theme-aware colors
+  const CHART_BG   = theme === 'light' ? "#f8fafc" : "#0d0f14";
+  const GRID_COLOR = theme === 'light' ? "#e2e8f0" : "#1c2030";
+  const TEXT_COLOR = theme === 'light' ? "#64748b" : "#8892a4";
+  const ZERO_COLOR = theme === 'light' ? "#cbd5e1" : "#2a3048";
+  const TARGET_COLOR = theme === 'light' ? "#94a3b8" : "#aebbc9";
+  const LEGEND_BG = theme === 'light' ? "rgba(255,255,255,0.85)" : "rgba(13,15,20,0.85)";
+  const LEGEND_BORDER = theme === 'light' ? "#cbd5e1" : "#252b3a";
+
   const layout: any = {
     shapes: bandShapes,
     showlegend: visibleTraces.length >= 2, // only show legend if at least 2 graphs
@@ -244,7 +249,7 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
       type: "log",
       // Lock to 20–20 kHz — prevent zooming past the useful range
       range: [X_MIN, X_MAX],
-      fixedrange: true,
+      fixedrange: false,
       tickvals: customTickVals,
       ticktext: customTickText,
       gridcolor: GRID_COLOR,
@@ -255,7 +260,7 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
 
     yaxis: {
       range: [yMin, yMax],
-      fixedrange: true,
+      fixedrange: false,
       tickvals: yTickVals,
       ticktext: yTickText,
       gridcolor: GRID_COLOR,
@@ -271,20 +276,20 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
       y: 1.02,
       xanchor: "right",
       x: 1,
-      bgcolor: "rgba(13,15,20,0.85)",
-      bordercolor: "#252b3a",
+      bgcolor: LEGEND_BG,
+      bordercolor: LEGEND_BORDER,
       borderwidth: 1,
       font: { size: 11, color: TEXT_COLOR },
     },
 
     hovermode: "x",
-    // No drag zoom — chart is already constrained to 20–20 kHz
-    dragmode: false,
+    // Allow pan/zoom on touch devices
+    dragmode: "pan",
   };
 
   const config: any = {
-    // Scroll zoom disabled — prevents infinite zoom
-    scrollZoom: false,
+    // Enable scroll zoom for pinch-to-zoom on mobile
+    scrollZoom: true,
     displayModeBar: true,
     modeBarButtonsToRemove: [
       "zoom2d", "pan2d", "zoomIn2d", "zoomOut2d",

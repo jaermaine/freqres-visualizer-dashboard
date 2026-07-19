@@ -7,14 +7,16 @@ interface Props {
   onRemove: (id: string) => void;
   onColorChange: (id: string, color: string) => void;
   onLabelChange: (id: string, label: string) => void;
+  onNoteChange: (id: string, note: string) => void;
 }
 
-export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelChange }: Props) {
+export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelChange, onNoteChange }: Props) {
+  const [showNotes, setShowNotes] = useState(!!trace.notes);
+
   return (
-    <div
-      className="flex items-center gap-2 px-2 py-1.5 rounded bg-[var(--bg-raised)] border border-[var(--border-subtle)] group"
-    >
-      <div className="cursor-grab text-slate-500 opacity-50 group-hover:opacity-100 flex-shrink-0" title="Drag to reorder">
+    <div className="flex flex-col gap-1 p-1.5 rounded bg-[var(--bg-raised)] border border-[var(--border-subtle)] group">
+      <div className="flex items-center gap-2">
+        <div className="cursor-grab text-slate-500 opacity-50 group-hover:opacity-100 flex-shrink-0" title="Drag to reorder">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="8" y1="6" x2="21" y2="6"></line>
           <line x1="8" y1="12" x2="21" y2="12"></line>
@@ -45,14 +47,33 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
         className="flex-1 min-w-0 bg-transparent text-sm text-slate-200 outline-none"
         style={{ fontFamily: "Inter, sans-serif" }}
       />
-      <button
-        onClick={() => onRemove(trace.id)}
-        className="text-slate-600 hover:text-red-400 flex-shrink-0 text-sm leading-none"
-        title="Remove trace"
-        aria-label={`Remove ${trace.label}`}
-      >
-        ✕
-      </button>
+        <button
+          onClick={() => setShowNotes(!showNotes)}
+          className="text-slate-500 hover:text-[var(--text-primary)] flex-shrink-0 text-sm leading-none"
+          title="Toggle notes"
+        >
+          ✎
+        </button>
+        <button
+          onClick={() => onRemove(trace.id)}
+          className="text-slate-600 hover:text-red-400 flex-shrink-0 text-sm leading-none"
+          title="Remove trace"
+          aria-label={`Remove ${trace.label}`}
+        >
+          ✕
+        </button>
+      </div>
+      {showNotes && (
+        <div className="pl-6 pr-1 pb-1">
+          <input
+            type="text"
+            placeholder="Add notes (e.g. foam mod, spinfits)..."
+            value={trace.notes || ""}
+            onChange={(e) => onNoteChange(trace.id, e.target.value)}
+            className="w-full bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded px-2 py-1 text-xs text-[var(--text-secondary)] outline-none focus:border-[var(--accent)]"
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -63,10 +84,11 @@ interface ListProps {
   onRemove: (id: string) => void;
   onColorChange: (id: string, color: string) => void;
   onLabelChange: (id: string, label: string) => void;
+  onNoteChange: (id: string, note: string) => void;
   onReorder: (dragIndex: number, hoverIndex: number) => void;
 }
 
-export function TraceList({ traces, onToggle, onRemove, onColorChange, onLabelChange, onReorder }: ListProps) {
+export function TraceList({ traces, onToggle, onRemove, onColorChange, onLabelChange, onNoteChange, onReorder }: ListProps) {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
@@ -132,6 +154,7 @@ export function TraceList({ traces, onToggle, onRemove, onColorChange, onLabelCh
               onRemove={onRemove}
               onColorChange={onColorChange}
               onLabelChange={onLabelChange}
+              onNoteChange={onNoteChange}
             />
           </div>
         );

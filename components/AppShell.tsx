@@ -30,7 +30,40 @@ function nextColor(traces: Trace[]): string {
 }
 
 export function AppShell() {
-  const [traces, setTraces] = useState<Trace[]>([]);
+  const [tracesRaw, setTracesRaw] = useState<Trace[]>([]);
+  const [history, setHistory] = useState<Trace[][]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  const setTraces = useCallback((action: Trace[] | ((prev: Trace[]) => Trace[])) => {
+    setTracesRaw((prev) => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      if (next !== prev) {
+        setHistory((h) => {
+          const upToCurrent = h.slice(0, historyIndex + 1);
+          const newHistory = [...upToCurrent, next].slice(-50);
+          setHistoryIndex(newHistory.length - 1);
+          return newHistory;
+        });
+      }
+      return next;
+    });
+  }, [historyIndex]);
+
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      setHistoryIndex(i => i - 1);
+      setTracesRaw(history[historyIndex - 1]);
+    }
+  }, [history, historyIndex]);
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      setHistoryIndex(i => i + 1);
+      setTracesRaw(history[historyIndex + 1]);
+    }
+  }, [history, historyIndex]);
+
+  const traces = tracesRaw;
   const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set());
   const [lastResult, setLastResult] = useState<ImportResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,15 +75,25 @@ export function AppShell() {
   const [isCompensated, setIsCompensated] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const hasHydrated = useRef(false);
   const uid = useId();
-  let traceCounter = traces.length;
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const hasSeen = localStorage.getItem('freqres_hasSeenOnboarding');
       if (!hasSeen) {
         setShowOnboarding(true);
+      }
+      const savedTheme = localStorage.getItem("freqres_theme");
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        setTheme(savedTheme);
+        document.documentElement.className = `theme-${savedTheme}`;
+      } else {
+        const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+        const initialTheme = prefersLight ? 'light' : 'dark';
+        setTheme(initialTheme);
+        document.documentElement.className = `theme-${initialTheme}`;
       }
     }
   }, []);
@@ -200,6 +243,21 @@ export function AppShell() {
   }, [handleImport]);
 
   // Serialization: Save to Local Storage on changes
+  if (!hasHydrated.current) {
+    return (
+      <div className="flex h-screen w-full bg-[var(--bg-base)]">
+        <div className="w-80 h-full border-r border-[var(--border)] bg-[var(--bg-surface)] p-4 flex flex-col gap-4 animate-pulse">
+          <div className="h-8 bg-[var(--bg-raised)] rounded w-3/4"></div>
+          <div className="h-20 bg-[var(--bg-raised)] rounded w-full"></div>
+          <div className="h-40 bg-[var(--bg-raised)] rounded w-full mt-4"></div>
+        </div>
+        <div className="flex-1 p-6 flex flex-col gap-4 animate-pulse">
+          <div className="h-10 bg-[var(--bg-raised)] rounded w-full"></div>
+          <div className="flex-1 bg-[var(--bg-raised)] rounded w-full"></div>
+        </div>
+      </div>
+    );
+  }
   useEffect(() => {
     if (!hasHydrated.current) return; // wait until hydrated before saving
     
@@ -232,11 +290,11 @@ export function AppShell() {
 
       let imageBase64 = null;
       try {
-        const Plotly = (await import('plotly.js-dist-min')).default;
+        const Plotly = (await import('plotly.js-basic-dist-min')).default;
         const graphDiv = document.querySelector('.js-plotly-plot') as HTMLElement;
         if (graphDiv) {
-          // Generate a 1200x630 (standard OG size) snapshot of the graph
-          imageBase64 = await Plotly.toImage(graphDiv, {format: 'png', width: 1200, height: 630});
+          // Generate a 1200x630 (standard OG size) snapshot of the graph as JPEG to save Redis payload size
+          imageBase64 = await Plotly.toImage(graphDiv, {format: 'jpeg', width: 1200, height: 630});
         }
       } catch (imgErr) {
         console.error("Failed to capture graph image:", imgErr);
@@ -258,20 +316,60 @@ export function AppShell() {
       });
 
       if (!res.ok) throw new Error("Failed to generate shortlink");
-      const { id } = await res.json();
-      
-      const shareUrl = `${window.location.origin}/s/${id}`;
-      await navigator.clipboard.writeText(shareUrl);
-      
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-      console.error("Share error:", err);
-      alert("Failed to generate share link. Please try again.");
-    } finally {
-      setIsSharing(false);
-    }
+        const data = await res.json();
+        const shortUrl = `${window.location.origin}/s/${data.id}`;
+        
+        try {
+          await navigator.clipboard.writeText(shortUrl);
+          setIsCopied(true);
+          setTimeout(() => setIsCopied(false), 2000);
+        } catch (err) {
+          console.error("Failed to copy to clipboard:", err);
+          // Fallback UI or prompt could go here
+        }
+      } catch (err) {
+        console.error("Failed to share workspace:", err);
+        alert("Failed to share workspace. Please try again.");
+      } finally {
+        setIsSharing(false);
+      }
   }, [traces, selectedTarget, enabledBands, isCompensated, isInteractiveGraph]);
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) redo();
+          else undo();
+        } else if (e.key === 'y') {
+          e.preventDefault();
+          redo();
+        } else if (e.key === 's') {
+          e.preventDefault();
+          handleShareWorkspace();
+        }
+      } else {
+        if (e.key >= '1' && e.key <= '9') {
+          const index = parseInt(e.key) - 1;
+          if (index < traces.length) {
+            setTraces((prev) => {
+              const next = [...prev];
+              next[index] = { ...next[index], visible: !next[index].visible };
+              return next;
+            });
+          }
+        } else if (e.key === 'Escape') {
+          setIsSidebarOpen(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [traces, undo, redo, handleShareWorkspace, setTraces]);
 
   const handleToggleTrace = useCallback((id: string) => {
     setTraces((prev) => prev.map((t) => t.id === id ? { ...t, visible: !t.visible } : t));
@@ -281,15 +379,19 @@ export function AppShell() {
     setTraces((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const handleColorChange = useCallback((id: string, color: string) => {
-    setTraces((prev) => prev.map((t) => t.id === id ? { ...t, color } : t));
-  }, []);
+  const handleColorChange = (id: string, color: string) => {
+    setTraces((prev) => prev.map((t) => (t.id === id ? { ...t, color } : t)));
+  };
 
-  const handleLabelChange = useCallback((id: string, label: string) => {
-    setTraces((prev) => prev.map((t) => t.id === id ? { ...t, label } : t));
-  }, []);
+  const handleLabelChange = (id: string, label: string) => {
+    setTraces((prev) => prev.map((t) => (t.id === id ? { ...t, label } : t)));
+  };
 
-  const handleReorderTraces = useCallback((dragIndex: number, hoverIndex: number) => {
+  const handleNoteChange = (id: string, notes: string) => {
+    setTraces((prev) => prev.map((t) => (t.id === id ? { ...t, notes } : t)));
+  };
+
+  const handleReorderTraces = (dragIndex: number, hoverIndex: number) => {
     setTraces((prev) => {
       const next = [...prev];
       const [dragged] = next.splice(dragIndex, 1);
@@ -349,6 +451,13 @@ export function AppShell() {
      });
   }
 
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('freqres_theme', newTheme);
+    document.documentElement.className = `theme-${newTheme}`;
+  };
+
   return (
     <div className="flex h-screen w-full bg-[var(--bg-base)] text-[var(--text-primary)]">
       <Sidebar
@@ -361,6 +470,7 @@ export function AppShell() {
         onRemoveTrace={handleRemoveTrace}
         onColorChange={handleColorChange}
         onLabelChange={handleLabelChange}
+        onNoteChange={handleNoteChange}
         onReorderTraces={handleReorderTraces}
         onToggleBand={handleToggleBand}
         onClearAllBands={handleClearAllBands}
@@ -377,6 +487,8 @@ export function AppShell() {
         isSharing={isSharing}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
       <main className="flex-1 flex flex-col relative h-full bg-[var(--bg-base)] overflow-hidden">
         {/* Mobile Header */}
@@ -416,6 +528,7 @@ export function AppShell() {
             selectedTarget={selectedTarget} 
             isCompensated={isCompensated}
             onChartHover={setHoveredHz}
+            theme={theme}
           />
         </div>
         

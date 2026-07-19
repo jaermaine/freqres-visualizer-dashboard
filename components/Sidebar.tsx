@@ -18,6 +18,7 @@ interface Props {
   onRemoveTrace: (id: string) => void;
   onColorChange: (id: string, color: string) => void;
   onLabelChange: (id: string, label: string) => void;
+  onNoteChange: (id: string, note: string) => void;
   onReorderTraces: (sourceIndex: number, destIndex: number) => void;
   onToggleBand: (id: string) => void;
   onClearAllBands: () => void;
@@ -34,6 +35,8 @@ interface Props {
   isSharing?: boolean;
   isOpen?: boolean;
   onClose?: () => void;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
 }
 
 export function Sidebar({
@@ -46,6 +49,7 @@ export function Sidebar({
   onRemoveTrace,
   onColorChange,
   onLabelChange,
+  onNoteChange,
   onReorderTraces,
   onToggleBand,
   onClearAllBands,
@@ -62,6 +66,8 @@ export function Sidebar({
   isSharing,
   isOpen,
   onClose,
+  theme,
+  onToggleTheme,
 }: Props) {
   const [url, setUrl] = useState("");
   const [cooldown, setCooldown] = useState(0);
@@ -74,10 +80,13 @@ export function Sidebar({
 
   const handleImport = useCallback(async () => {
     if (!url.trim() || loading || cooldown > 0) return;
-    const success = await onImport(url.trim());
-    if (success) {
-      setUrl("");
+    const urls = url.split(/[\n, ]+/).map(u => u.trim()).filter(Boolean);
+    
+    for (const singleUrl of urls) {
+      await onImport(singleUrl);
     }
+    
+    setUrl("");
     setCooldown(3); // 3-second UI rate limit
   }, [url, onImport, loading, cooldown]);
 
@@ -168,13 +177,13 @@ export function Sidebar({
           <p className="label-xs mb-1.5">Import URL</p>
           <textarea
             id="url-input"
-            className="input-field"
-            rows={2}
-            placeholder="Paste Squiglink or raw file URL..."
+            className="flex-1 w-full bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)] disabled:opacity-50 min-h-[60px] resize-y"
+            placeholder="Paste squig.link URL(s) or raw data..."
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyDown={handleKey}
             spellCheck={false}
+            disabled={loading || cooldown > 0}
           />
           <button
             id="import-btn"
@@ -197,6 +206,7 @@ export function Sidebar({
             onRemove={onRemoveTrace}
             onColorChange={onColorChange}
             onLabelChange={onLabelChange}
+            onNoteChange={onNoteChange}
             onReorder={onReorderTraces}
           />
         </section>
@@ -286,6 +296,13 @@ export function Sidebar({
           >
             🐛 Report Bug / Feedback
           </a>
+          <button
+            onClick={onToggleTheme}
+            className="text-xs hover:underline py-1 text-left"
+            style={{ color: "var(--text-muted)" }}
+          >
+            {theme === 'dark' ? '☀️ Switch to Light Mode' : '🌙 Switch to Dark Mode'}
+          </button>
         </div>
       </div>
       </aside>

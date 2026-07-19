@@ -123,6 +123,7 @@ export type Trace = {
   normalized: NormalizedCurve;
   source: ParsedSourceUrl;
   visible: boolean;
+  notes?: string;
 };
 
 // ─── Parameter Bands ───────────────────────────────────────────────────────
