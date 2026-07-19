@@ -61,21 +61,32 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   // Use dynamic OG image from the database
   const ogImageUrl = `https://freqres.vercel.app/api/og-image?id=${id}`;
+  const pageUrl = `https://freqres.vercel.app/s/${id}`;
 
   return {
     title,
     description,
     openGraph: {
+      type: 'website',
+      url: pageUrl,
       title,
       description,
-      images: [ogImageUrl], 
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: title,
+        }
+      ], 
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
       images: [ogImageUrl],
-    }
+    },
+    metadataBase: new URL('https://freqres.vercel.app'),
   };
 }
 
