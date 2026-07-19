@@ -131,14 +131,29 @@ export default function TutorialPage() {
         <section id="managing-traces" className="mb-10">
           <h2 className="text-base font-semibold mb-2" style={{ color: "var(--text-primary)" }}>Managing Traces</h2>
           <p className="text-sm mb-3" style={{ color: "var(--text-secondary)", lineHeight: 1.8 }}>
-            Once you have imported frequency response curves, they will appear in the sidebar as traces. You can manage them with the following features:
+            Once traces are loaded, they appear in the sidebar where you can customize them to your liking:
           </p>
-          <ul className="text-sm flex flex-col gap-2 pl-4 list-disc" style={{ color: "var(--text-secondary)", lineHeight: 1.8 }}>
-            <li><strong style={{ color: "var(--text-primary)" }}>Visibility Toggle:</strong> Click the checkbox next to a trace to show or hide it on the graph.</li>
-            <li><strong style={{ color: "var(--text-primary)" }}>Change Color:</strong> Click the color block next to a trace's name to pick a new color. FreqRes auto-assigns high-contrast neon colors by default.</li>
-            <li><strong style={{ color: "var(--text-primary)" }}>Rename Trace:</strong> Click on the trace's name to edit it. This does not affect the original file.</li>
-            <li><strong style={{ color: "var(--text-primary)" }}>Reorder:</strong> Drag and drop a trace by clicking the grab icon (six dots) to rearrange the list.</li>
-            <li><strong style={{ color: "var(--text-primary)" }}>Delete:</strong> Click the '✕' icon to remove a trace entirely.</li>
+          <ul className="list-disc pl-5 text-sm space-y-2 mb-4" style={{ color: "var(--text-secondary)" }}>
+            <li><strong>Visibility:</strong> Click the checkbox to temporarily hide a trace from the graph. (Keyboard shortcut: Press numbers <kbd>1</kbd>-<kbd>9</kbd>).</li>
+            <li><strong>Color:</strong> Click the color swatch next to the trace name to open the color picker.</li>
+            <li><strong>Rename:</strong> Click the text of the trace name and start typing to rename it. The new name will reflect instantly on the graph legend.</li>
+            <li><strong>Notes (✎):</strong> Click the edit icon to add custom notes (e.g. "Foam mod applied").</li>
+            <li><strong>Reorder:</strong> Drag and drop traces in the list to change their rendering order (Z-index). The bottom trace is drawn on top.</li>
+            <li><strong>Undo/Redo:</strong> Made a mistake? Press <kbd>Ctrl+Z</kbd> to undo trace removals, color changes, or visibility toggles, and <kbd>Ctrl+Y</kbd> to redo!</li>
+          </ul>
+        </section>
+
+        {/* Advanced Power Tools */}
+        <section id="advanced-tools" className="mb-10">
+          <h2 className="text-base font-semibold mb-2" style={{ color: "var(--text-primary)" }}>Advanced Power Tools</h2>
+          <p className="text-sm mb-3" style={{ color: "var(--text-secondary)", lineHeight: 1.8 }}>
+            FreqRes is packed with tools for power users who compare multiple items daily.
+          </p>
+          <ul className="list-disc pl-5 text-sm space-y-2 mb-4" style={{ color: "var(--text-secondary)" }}>
+            <li><strong>Autocomplete Search:</strong> Use the "Search Databases" box to instantly query Squiglink databases (like Jaytiss or Super*Review). Clicking an IEM automatically imports it.</li>
+            <li><strong>Bulk Import:</strong> Paste multiple URLs separated by newlines directly into the Import URL box to fetch them all at once.</li>
+            <li><strong>Workspaces:</strong> Have a set of traces, targets, and colors you use often? Type a name in the "Saved Workspaces" section and hit Save. Your entire state is persisted locally.</li>
+            <li><strong>PWA Support:</strong> You can "Install" FreqRes as a standalone app via your browser's address bar for lightning fast access and offline support.</li>
           </ul>
         </section>
 

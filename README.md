@@ -11,9 +11,17 @@ Instead of navigating complex proprietary databases or downloading text files ma
 - **Tuning Targets:** Overlay industry-standard tuning targets (e.g., Harman IE 2019, IEF Neutral) directly onto your graph to evaluate IEMs against established benchmarks.
 - **Interactive Parameter Bands:** Semantic frequency zones (e.g., Sub Bass, Mid Bass, "Air") render as beautiful, semi-transparent overlays. Hover directly over the graph to preview these zones, and click anywhere to lock them in place.
 - **Smart Normalization:** Raw frequency data is normalized around the 1kHz range, ensuring multiple IEM traces align intuitively on the exact same baseline for accurate comparison.
+- **Advanced UX & Power Tools:** 
+  - **Autocomplete Search:** Instantly search through major databases (Jaytiss, Super*Review, Precog) and auto-import with one click.
+  - **Bulk Import:** Paste multiple Squiglink URLs at once to sequentially fetch traces.
+  - **Undo/Redo History:** Seamlessly undo (`Ctrl+Z`) and redo (`Ctrl+Y`) visibility toggles, trace deletions, and color changes.
+  - **Workspace Management:** Save your current trace configurations (colors, targets, visibility) locally under custom names, and easily switch between different comparisons.
+  - **Keyboard Shortcuts:** Rapidly toggle the visibility of traces using number keys (`1-9`), undo/redo actions, and quickly share workspaces (`Ctrl+S`).
+  - **Trace Notes:** Attach specific, persistent text notes (e.g. "Foam mod applied") to any imported curve.
+- **Progressive Web App (PWA):** Install FreqRes as a standalone app on your desktop or mobile device. Offline caching is built-in for lightning-fast loads.
 - **Frictionless Onboarding:** First-time users are greeted with a quick 3-step feature highlight modal that automatically remembers dismissal state via local storage.
-- **Mobile Responsive:** Features a premium UI with a sleek off-canvas Hamburger drawer and fully responsive charts that look stunning on both desktop and mobile devices.
-- **Dynamic Export:** One-click export for high-resolution PNG graph screenshots with dynamically generated, descriptive filenames (e.g., `Moondrop Aria | Truthear Gate A-B Comparison.png`).
+- **Mobile Responsive & Accessible:** Features a premium UI with full touch gesture support (pinch-to-zoom), smooth CSS animations, light/dark mode toggles, and screen-reader accessibility.
+- **Dynamic Export:** One-click export for high-resolution JPEG graph screenshots with dynamically generated, descriptive filenames (e.g., `Moondrop Aria | Truthear Gate A-B Comparison.jpg`).
 
 ## 🛡️ Security & Privacy
 
