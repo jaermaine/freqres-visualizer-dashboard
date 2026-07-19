@@ -33,22 +33,42 @@ export async function GET(req: NextRequest) {
           entries = Object.values(data).flat();
         }
 
-        // Filter and map
+        // Extract all valid phone entries
+        const extractedEntries: any[] = [];
         for (const entry of entries) {
-          const name = entry.name || entry.n || entry.file || entry.f;
-          if (name && name.toLowerCase().includes(q)) {
-            // Build the URL that can be imported
-            // Standard squiglink share URL format: https://[db]/?share=[name]
-            const importUrl = `${db.base}?share=${encodeURIComponent(name)}`;
-            results.push({
-              id: `${db.id}-${name}`,
-              name: name,
-              source: db.name,
-              url: importUrl
-            });
-            if (results.length > 30) break; // limit
+          if (entry.phones && Array.isArray(entry.phones)) {
+            // New Squiglink format: { name: 'Brand', phones: [...] }
+            extractedEntries.push(...entry.phones);
+          } else {
+            // Old Squiglink format: { name: 'Model', file: '...' }
+            extractedEntries.push(entry);
           }
         }
+
+        // Filter and map
+        for (const entry of extractedEntries) {
+          // 'file' or 'f' is usually the exact internal name needed for the ?share= parameter.
+          // Sometimes it's an array for multiple configurations.
+          const files = Array.isArray(entry.file) ? entry.file : (entry.file || entry.f ? [entry.file || entry.f] : []);
+          
+          for (const file of files) {
+            const displayName = entry.name || entry.n || file;
+            const searchTarget = (displayName + " " + file).toLowerCase();
+            
+            if (searchTarget.includes(q)) {
+              const importUrl = `${db.base}?share=${encodeURIComponent(file)}`;
+              results.push({
+                id: `${db.id}-${file}`,
+                name: file, // Use the file name so it's clear exactly which config it is
+                source: db.name,
+                url: importUrl
+              });
+              if (results.length > 30) break; // limit inner loop
+            }
+          }
+          if (results.length > 30) break; // limit outer loop
+        }
+
       } catch (e) {
         console.error(`Failed to fetch ${db.id} phonebook:`, e);
       }
