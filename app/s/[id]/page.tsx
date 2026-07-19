@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import { Redis } from '@upstash/redis';
-import { redirect } from 'next/navigation';
+import { Redirector } from '@/components/Redirector';
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || '',
@@ -78,8 +78,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default function ShortLinkPage({ params }: Props) {
-  // Instead of rendering a heavy client app, we instantly server-redirect the user
-  // back to the root page, passing the short ID so AppShell can hydrate it!
-  // Scrapers (Discord, Twitter) don't follow redirects immediately, they read the <head> tags above!
-  redirect(`/?s=${params.id}`);
+  // We use a client-side redirect so that Discord/Twitter scrapers
+  // (which don't run JS) hit a 200 OK and read our beautiful <head> tags!
+  return <Redirector id={params.id} />;
 }
