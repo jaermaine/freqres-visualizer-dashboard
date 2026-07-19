@@ -130,13 +130,13 @@ export function AppShell() {
             const isDuplicate = currentTraces.some(t => {
               if (t.label !== curve.label) return false;
               if (t.source.kind !== data.source.kind) return false;
-              if (t.source.kind === 'squiglink') {
+              if (t.source.kind === 'squiglink-share-url' && data.source.kind === 'squiglink-share-url') {
                 return t.source.host === data.source.host;
               }
-              if (t.source.kind === 'hangout') {
+              if (t.source.kind === 'hangout-graph-url' && data.source.kind === 'hangout-graph-url') {
                 return t.source.rigId === data.source.rigId;
               }
-              if (t.source.kind === 'raw') {
+              if (t.source.kind === 'raw-measurement-file-url' && data.source.kind === 'raw-measurement-file-url') {
                 return t.source.url === data.source.url;
               }
               return false;
