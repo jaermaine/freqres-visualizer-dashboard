@@ -59,9 +59,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     console.error("Error generating metadata for shortlink:", error);
   }
 
-  // Use dynamic OG image from the database
-  const ogImageUrl = `https://freqres.vercel.app/api/og-image?id=${id}`;
-  const pageUrl = `https://freqres.vercel.app/s/${id}`;
+  // Use relative URLs and let metadataBase resolve them automatically
+  const ogImageUrl = `/api/og-image?id=${id}`;
+  const pageUrl = `/s/${id}`;
 
   return {
     title,
@@ -86,7 +86,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       images: [ogImageUrl],
     },
-    metadataBase: new URL('https://freqres.vercel.app'),
+    metadataBase: new URL('https://freqres-visualizer-dashboard.vercel.app'),
   };
 }
 
