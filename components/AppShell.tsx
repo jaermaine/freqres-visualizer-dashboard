@@ -9,10 +9,6 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import type { Trace, ImportResult } from "@/types/audio";
 import { PARAMETER_BANDS } from "@/lib/parameterBands";
 
-// High-contrast luminous palette for graph traces to ensure they never blend in with parameter bands
-const PALETTE = [
-  "#ffffff", // White
-  "#ff00aa", // Neon Pink
 import { PALETTE } from '@/lib/colors';
 
 function getAvailableColor(traces: Trace[], currentLabel: string, theme: string): string {
