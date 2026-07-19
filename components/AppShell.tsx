@@ -39,6 +39,7 @@ export function AppShell() {
   const [hoveredBand, setHoveredBand] = useState<string | null>(null);
   const [hoveredHz, setHoveredHz] = useState<number | null>(null);
   const [isInteractiveGraph, setIsInteractiveGraph] = useState(true);
+  const [isCompensated, setIsCompensated] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const uid = useId();
   let traceCounter = traces.length;
@@ -218,6 +219,8 @@ export function AppShell() {
         onToggleInteractiveGraph={() => setIsInteractiveGraph(p => !p)}
         selectedTarget={selectedTarget}
         onSelectTarget={setSelectedTarget}
+        isCompensated={isCompensated}
+        onToggleCompensated={() => setIsCompensated(p => !p)}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
       />
@@ -257,6 +260,7 @@ export function AppShell() {
             enabledBands={enabledBands} 
             hoveredBands={hoveredBandsOnly}
             selectedTarget={selectedTarget} 
+            isCompensated={isCompensated}
             onChartHover={setHoveredHz}
           />
         </div>

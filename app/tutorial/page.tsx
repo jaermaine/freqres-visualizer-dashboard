@@ -121,6 +121,8 @@ export default function TutorialPage() {
             </li>
             <li>
               <strong style={{ color: "var(--text-primary)" }}>Tuning Targets:</strong> Reference tuning curves (e.g., Harman IE 2019, IEF Neutral) that you can select from the sidebar to overlay on your graph, allowing you to compare your imported traces against industry standards.
+              <br />
+              <em style={{ color: "var(--text-muted)" }}>Compensate to Target: Once a target is selected, you can check this box in the sidebar to flatten the target into a perfectly straight line. The graph will instantly zoom in and convert all imported headphone traces into +/- dB Deltas. This makes it effortless to spot precise frequency deviations, calculate EQ filters, and identify hidden resonances.</em>
             </li>
           </ul>
         </section>

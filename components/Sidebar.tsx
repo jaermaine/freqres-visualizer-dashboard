@@ -27,6 +27,8 @@ interface Props {
   onToggleInteractiveGraph: () => void;
   selectedTarget: string;
   onSelectTarget: (id: string) => void;
+  isCompensated: boolean;
+  onToggleCompensated: () => void;
   isOpen?: boolean;
   onClose?: () => void;
 }
@@ -50,6 +52,8 @@ export function Sidebar({
   onToggleInteractiveGraph,
   selectedTarget,
   onSelectTarget,
+  isCompensated,
+  onToggleCompensated,
   isOpen,
   onClose,
 }: Props) {
@@ -216,6 +220,19 @@ export function Sidebar({
               <option key={target.id} value={target.id}>{target.label}</option>
             ))}
           </select>
+          <label 
+            className={`flex items-center gap-1.5 mt-2 cursor-pointer text-xs transition-opacity ${selectedTarget === "none" ? "opacity-40 pointer-events-none" : ""}`} 
+            style={{ color: "var(--text-muted)" }}
+          >
+            <input 
+              type="checkbox" 
+              checked={isCompensated} 
+              onChange={onToggleCompensated} 
+              disabled={selectedTarget === "none"}
+              className="accent-indigo-500" 
+            />
+            Compensate to Target
+          </label>
         </section>
 
         <hr className="divider" />

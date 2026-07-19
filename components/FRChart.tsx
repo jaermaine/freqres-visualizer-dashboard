@@ -12,6 +12,7 @@ interface Props {
   enabledBands: Set<string>;
   hoveredBands?: Set<string>;
   selectedTarget?: string;
+  isCompensated?: boolean;
   onChartHover?: (hz: number | null) => void;
 }
 
@@ -20,14 +21,35 @@ const GRID_COLOR = "#1c2030";
 const TEXT_COLOR = "#8892a4";
 const ZERO_COLOR = "#2a3048";
 
-// Standard FR chart range: 20–20 kHz on X, 30-85 dB on Y
+// Standard FR chart range: 20–20 kHz on X
 const X_MIN = Math.log10(20);
 const X_MAX = Math.log10(20000);
-const Y_MIN = 30;
-const Y_MAX = 85;
 
-export function FRChart({ traces, enabledBands, hoveredBands = new Set(), selectedTarget, onChartHover }: Props) {
+export function FRChart({ traces, enabledBands, hoveredBands = new Set(), selectedTarget, isCompensated, onChartHover }: Props) {
   const visibleTraces = traces.filter((t) => t.visible && t.normalized.hz.length > 0);
+  const targetObj = TUNING_TARGETS.find(t => t.id === selectedTarget);
+
+  // Log-linear interpolation for precise target dB matching at arbitrary frequencies
+  const interpolateTarget = (hz: number): number => {
+    if (!targetObj) return 0;
+    const { hz: tHz, db: tDb } = targetObj;
+    if (hz <= tHz[0]) return tDb[0];
+    if (hz >= tHz[tHz.length - 1]) return tDb[tDb.length - 1];
+    for (let i = 0; i < tHz.length - 1; i++) {
+      if (hz >= tHz[i] && hz <= tHz[i + 1]) {
+        const logHz = Math.log10(hz);
+        const logH0 = Math.log10(tHz[i]);
+        const logH1 = Math.log10(tHz[i + 1]);
+        const t = (logHz - logH0) / (logH1 - logH0);
+        return tDb[i] + t * (tDb[i + 1] - tDb[i]);
+      }
+    }
+    return 0;
+  };
+
+  // Base range: standard is 30-85, compensated defaults to 40-80 (+/- 20 dB) but will auto-expand if needed
+  let yMin = isCompensated ? 40 : 30;
+  let yMax = isCompensated ? 80 : 85;
 
   // Compute per-trace dB offset so each curve is centered around 60 dB
   // (mean dB over 1 kHz reference region 900–1100 Hz → offset to 60)
@@ -41,16 +63,44 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
         ? refPoints.reduce((sum, p) => sum + p.db, 0) / refPoints.length
         : 0;
 
+    let yVals = t.normalized.db.map((db) => db - refMean + 60);
+    let customData: any[] | undefined = undefined;
+
+    // Apply Compensation (Delta plotting) if enabled
+    if (isCompensated && targetObj) {
+      customData = [];
+      yVals = t.normalized.hz.map((hz, i) => {
+        const traceAdjusted = t.normalized.db[i] - refMean;
+        const targetInterp = interpolateTarget(hz);
+        const delta = traceAdjusted - targetInterp;
+        customData.push(delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1));
+        return 60 + delta;
+      });
+    }
+
     return {
       x: t.normalized.hz,
-      y: t.normalized.db.map((db) => db - refMean + 60),
+      y: yVals,
+      customdata: customData,
       type: "scatter",
       mode: "lines",
       name: t.label,
       // Linear shape preserves real peaks/dips; spline hides them
       line: { color: t.color, width: 2.8, shape: "linear" },
-      hovertemplate: "<b>%{data.name}</b><br>%{x:.0f} Hz<br>%{y:.1f} dB<extra></extra>",
+      hovertemplate: isCompensated
+        ? "<b>%{data.name}</b><br>%{x:.0f} Hz<br>%{customdata} dB<extra></extra>"
+        : "<b>%{data.name}</b><br>%{x:.0f} Hz<br>%{y:.1f} dB<extra></extra>",
     };
+  });
+
+  // Auto-expand Y-axis bounds to prevent clipping extreme deviations (like -26dB dips)
+  plotData.forEach((trace) => {
+    if (trace.y && trace.y.length > 0) {
+      const traceMin = Math.min(...trace.y);
+      const traceMax = Math.max(...trace.y);
+      if (traceMin < yMin) yMin = Math.floor((traceMin - 2) / 5) * 5;
+      if (traceMax > yMax) yMax = Math.ceil((traceMax + 2) / 5) * 5;
+    }
   });
 
   const activeBands = PARAMETER_BANDS.filter((b) => enabledBands.has(b.id) || hoveredBands.has(b.id));
@@ -68,7 +118,7 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
   // Parameter bands as thick horizontal traces stacked at the top of the graph
   activeBands.forEach((band, index) => {
     const isLocked = enabledBands.has(band.id);
-    const yPos = Y_MAX - (index * 1.5) - 0.5; // Stack from 84.5 dB downwards
+    const yPos = yMax - (index * 1.5) - 0.5; // Stack from (yMax - 0.5) downwards
     const bandColor = band.color.replace(/[\d.]+\)$/, isLocked ? '0.9)' : '0.4)'); // visual distinction
 
     let xVals = [band.freqLow, band.freqHigh];
@@ -99,7 +149,7 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
       type: "line",
       x0: band.freqLow,
       x1: band.freqLow,
-      y0: Y_MIN,
+      y0: yMin,
       y1: yPos,
       line: {
         color: bandColor,
@@ -113,7 +163,7 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
       type: "line",
       x0: band.freqHigh,
       x1: band.freqHigh,
-      y0: Y_MIN,
+      y0: yMin,
       y1: yPos,
       line: {
         color: bandColor,
@@ -136,12 +186,21 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
     });
   });
 
-  const targetObj = TUNING_TARGETS.find(t => t.id === selectedTarget);
   const targetTraces: any[] = [];
   if (targetObj) {
+    let targetYVals = targetObj.db.map(db => db + 60);
+    let targetCustomData: any[] | undefined = undefined;
+    
+    if (isCompensated) {
+      // Flatten target into a perfect 60dB line
+      targetYVals = targetObj.hz.map(() => 60);
+      targetCustomData = targetObj.hz.map(() => "0.0");
+    }
+
     targetTraces.push({
       x: targetObj.hz,
-      y: targetObj.db.map(db => db + 60), // shift to 60dB reference
+      y: targetYVals,
+      customdata: targetCustomData,
       type: "scatter",
       mode: "lines",
       name: `Target: ${targetObj.label}`,
@@ -152,11 +211,26 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
         shape: "spline",
       },
       opacity: 0.8,
-      hovertemplate: `<b>${targetObj.label}</b><br>%{x:.0f} Hz<br>%{y:.1f} dB<extra></extra>`,
+      hovertemplate: isCompensated
+        ? `<b>${targetObj.label}</b><br>%{x:.0f} Hz<br>%{customdata} dB<extra></extra>`
+        : `<b>${targetObj.label}</b><br>%{x:.0f} Hz<br>%{y:.1f} dB<extra></extra>`,
     });
   }
 
   const allPlotData = [...plotData, ...targetTraces, ...bandLines];
+
+  // Generate Y axis ticks and labels based on compensation state
+  const yTickVals = [];
+  const yTickText = [];
+  for (let db = yMin; db <= yMax; db += 5) {
+    yTickVals.push(db);
+    if (isCompensated) {
+      const delta = db - 60;
+      yTickText.push(delta > 0 ? `+${delta}` : delta === 0 ? `0` : `${delta}`);
+    } else {
+      yTickText.push(`${db}`);
+    }
+  }
 
   const layout: any = {
     shapes: bandShapes,
@@ -179,15 +253,15 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
     },
 
     yaxis: {
-      // Fixed 30-85 dB window
-      range: [Y_MIN, Y_MAX],
+      range: [yMin, yMax],
       fixedrange: true,
-      dtick: 5,           // 5 dB grid lines
+      tickvals: yTickVals,
+      ticktext: yTickText,
       gridcolor: GRID_COLOR,
       zerolinecolor: ZERO_COLOR,
       zerolinewidth: 1.5,
       tickfont: { size: 10, color: TEXT_COLOR },
-      title: { text: "dB SPL", font: { size: 11, color: TEXT_COLOR } },
+      title: { text: isCompensated ? "Delta (dB)" : "dB SPL", font: { size: 11, color: TEXT_COLOR } },
     },
 
     legend: {
