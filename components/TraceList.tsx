@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Trace } from "@/types/audio";
 
 interface Props {
@@ -12,6 +12,20 @@ interface Props {
 
 export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelChange, onNoteChange }: Props) {
   const [showNotes, setShowNotes] = useState(!!trace.notes);
+  const [localColor, setLocalColor] = useState(trace.color);
+
+  useEffect(() => {
+    setLocalColor(trace.color);
+  }, [trace.color]);
+
+  useEffect(() => {
+    if (localColor !== trace.color) {
+      const timer = setTimeout(() => {
+        onColorChange(trace.id, localColor);
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [localColor, trace.color, trace.id, onColorChange]);
 
   return (
     <div className="flex flex-col gap-1 p-1.5 rounded bg-[var(--bg-raised)] border border-[var(--border-subtle)] group">
@@ -35,10 +49,9 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
         aria-label={`Toggle visibility for ${trace.label}`}
       />
       <input
-        key={trace.color}
         type="color"
-        defaultValue={trace.color}
-        onBlur={(e) => onColorChange(trace.id, e.target.value)}
+        value={localColor}
+        onChange={(e) => setLocalColor(e.target.value)}
         className="w-5 h-5 rounded cursor-pointer flex-shrink-0 border-0 bg-transparent p-0"
         title="Change color"
         aria-label={`Change color for ${trace.label}`}
