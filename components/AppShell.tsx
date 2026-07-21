@@ -3,6 +3,7 @@
 import { useState, useCallback, useId, useEffect, useRef } from "react";
 import { Sidebar } from "./Sidebar";
 import { FRChart } from "./FRChart";
+import { DifferenceTable } from "./DifferenceTable";
 import { ImportStatus } from "./HelpPanel";
 import { OnboardingModal } from "./OnboardingModal";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -645,26 +646,32 @@ export function AppShell() {
           </button>
         </div>
 
-        <div 
-          className="flex-1 min-h-[50vh]"
-          onMouseLeave={() => setHoveredHz(null)}
-          onPointerDownCapture={() => {
-            if (isInteractiveGraph && hoveredHz !== null) {
-              handleChartClick(hoveredHz);
-            }
-          }}
-        >
-          <ErrorBoundary>
-            <FRChart 
-              traces={traces} 
-              enabledBands={enabledBands} 
-              hoveredBands={hoveredBandsOnly}
-              selectedTarget={selectedTarget} 
-              isCompensated={isCompensated}
-              onChartHover={setHoveredHz}
-              theme={theme}
-            />
-          </ErrorBoundary>
+        <div className="flex-1 flex flex-col relative overflow-y-auto overflow-x-hidden">
+          <div 
+            className="flex-1 min-h-[60vh] shrink-0"
+            onMouseLeave={() => setHoveredHz(null)}
+            onPointerDownCapture={() => {
+              if (isInteractiveGraph && hoveredHz !== null) {
+                handleChartClick(hoveredHz);
+              }
+            }}
+          >
+            <ErrorBoundary>
+              <FRChart 
+                traces={traces} 
+                enabledBands={enabledBands} 
+                hoveredBands={hoveredBandsOnly}
+                selectedTarget={selectedTarget} 
+                isCompensated={isCompensated}
+                onChartHover={setHoveredHz}
+                theme={theme}
+              />
+            </ErrorBoundary>
+          </div>
+          
+          <div className="shrink-0 px-4 md:px-6 pb-6">
+            <DifferenceTable traces={traces} theme={theme} isCompensated={isCompensated} selectedTarget={selectedTarget} />
+          </div>
         </div>
         
         {/* Floating Toast Notification */}

@@ -18,10 +18,11 @@ Instead of navigating complex proprietary databases or downloading text files ma
   - **Workspace Management:** Save your current trace configurations (colors, targets, visibility) locally under custom names, and easily switch between different comparisons.
   - **Keyboard Shortcuts:** Rapidly toggle the visibility of traces using number keys (`1-9`), undo/redo actions, and quickly share workspaces (`Ctrl+S`).
   - **Trace Notes:** Attach specific, persistent text notes (e.g. "Foam mod applied") to any imported curve.
+  - **A/B Difference Table:** When exactly two traces are visible, a sleek table automatically appears below the graph displaying precise, dynamically calculated delta values across key frequencies (20, 100, 1k, 3k, 5k, 10k Hz), complete with target compensation support and swap functionality.
 - **Progressive Web App (PWA):** Install FreqRes as a standalone app on your desktop or mobile device. Offline caching is built-in for lightning-fast loads.
 - **Frictionless Onboarding:** First-time users are greeted with a quick 3-step feature highlight modal that automatically remembers dismissal state via local storage.
 - **Mobile Responsive & Accessible:** Features a premium UI with full touch gesture support (pinch-to-zoom), smooth CSS animations, light/dark mode toggles, and screen-reader accessibility.
-- **Dynamic Export:** One-click export for high-resolution JPEG graph screenshots with dynamically generated, descriptive filenames (e.g., `Moondrop Aria | Truthear Gate A-B Comparison.jpg`).
+- **Dynamic Export:** One-click export for high-resolution PNG graph screenshots directly from the sidebar. Screenshots include dynamically generated, descriptive filenames (e.g., `Moondrop Aria vs Truthear Gate Comparison.png`) and a clean "FreqRes" watermark.
 
 ## 🛡️ Security & Privacy
 

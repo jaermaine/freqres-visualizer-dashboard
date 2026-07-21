@@ -124,6 +124,11 @@ export default function TutorialPage() {
               <br />
               <em style={{ color: "var(--text-muted)" }}>Compensate to Target: Once a target is selected, you can check this box in the sidebar to flatten the target into a perfectly straight line. The graph will instantly zoom in and convert all imported headphone traces into +/- dB Deltas. This makes it effortless to spot precise frequency deviations, calculate EQ filters, and identify hidden resonances.</em>
             </li>
+            <li>
+              <strong style={{ color: "var(--text-primary)" }}>A/B Difference Table:</strong> When you have exactly two traces visible on the graph, a sleek A/B comparison table automatically appears below the chart. It calculates the precise decibel differences (Delta) between the two traces across key frequencies (20, 100, 1k, 3k, 5k, 10k Hz).
+              <br />
+              <em style={{ color: "var(--text-muted)" }}>This table is fully aware of your target compensation settings, meaning it will show absolute values in normal mode, and accurate Delta values relative to the target when compensation is enabled. You can quickly reverse the Delta calculation using the Swap button in the table header.</em>
+            </li>
           </ul>
         </section>
 
@@ -153,6 +158,7 @@ export default function TutorialPage() {
             <li><strong>Autocomplete Search:</strong> Use the "Search Databases" box to instantly query Squiglink databases (like Jaytiss or Super*Review). Clicking an IEM automatically imports it.</li>
             <li><strong>Bulk Import:</strong> Paste multiple URLs separated by newlines directly into the Import URL box to fetch them all at once.</li>
             <li><strong>Workspaces:</strong> Have a set of traces, targets, and colors you use often? Type a name in the "Saved Workspaces" section and hit Save. Your entire state is persisted locally.</li>
+            <li><strong>Export High-Res Graph:</strong> Want to share a screenshot? Click the "Export" button in the sidebar (next to the Share button) to instantly generate and download a clean, high-resolution PNG image of your graph with a professional watermark.</li>
             <li><strong>PWA Support:</strong> You can "Install" FreqRes as a standalone app via your browser's address bar for lightning fast access and offline support.</li>
           </ul>
         </section>
