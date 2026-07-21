@@ -76,6 +76,7 @@ export function AppShell() {
   const [hasHydrated, setHasHydrated] = useState(false);
   const [fetchingShared, setFetchingShared] = useState(false);
   const [linkExpired, setLinkExpired] = useState(false);
+  const [isExportingImage, setIsExportingImage] = useState(false);
   const uid = useId();
 
   useEffect(() => {
@@ -339,6 +340,58 @@ export function AppShell() {
       }
   }, [traces, selectedTarget, enabledBands, isCompensated, isInteractiveGraph]);
 
+  const handleExportImage = useCallback(async () => {
+    const visibleTraces = traces.filter((t) => t.visible);
+    if (visibleTraces.length === 0) return;
+    setIsExportingImage(true);
+    
+    try {
+      const Plotly = (await import('plotly.js-basic-dist-min')).default;
+      const graphDiv = document.querySelector('.js-plotly-plot') as HTMLElement;
+      if (!graphDiv) return;
+
+      const dataUrl = await Plotly.toImage(graphDiv, {
+        format: 'png',
+        width: 1200,
+        height: 800,
+      });
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise((resolve) => { img.onload = resolve; });
+
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      // Add watermark
+      ctx.font = "bold 24px Inter, sans-serif";
+      ctx.fillStyle = "rgba(150, 150, 150, 0.5)";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "bottom";
+      ctx.fillText("FreqRes", canvas.width - 40, canvas.height - 40);
+
+      const finalDataUrl = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = finalDataUrl;
+      const filename = visibleTraces.length === 1 
+        ? `${visibleTraces[0].label} Frequency Response.png` 
+        : `${visibleTraces.map(t => t.label).join(" vs ")} Comparison.png`;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (e) {
+      console.error("Export failed:", e);
+    } finally {
+      setIsExportingImage(false);
+    }
+  }, [traces]);
+
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -556,8 +609,10 @@ export function AppShell() {
           isCompensated={isCompensated}
           onToggleCompensated={() => setIsCompensated(p => !p)}
           onShareWorkspace={handleShareWorkspace}
+          onExportImage={handleExportImage}
           isCopied={isCopied}
           isSharing={isSharing}
+          isExportingImage={isExportingImage}
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
           theme={theme}

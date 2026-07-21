@@ -31,8 +31,10 @@ interface Props {
   isCompensated: boolean;
   onToggleCompensated: () => void;
   onShareWorkspace: () => void;
+  onExportImage: () => void;
   isCopied: boolean;
   isSharing?: boolean;
+  isExportingImage?: boolean;
   isOpen?: boolean;
   onClose?: () => void;
   theme: 'dark' | 'light';
@@ -66,8 +68,10 @@ export function Sidebar({
   isCompensated,
   onToggleCompensated,
   onShareWorkspace,
+  onExportImage,
   isCopied,
   isSharing,
+  isExportingImage,
   isOpen,
   onClose,
   theme,
@@ -164,6 +168,24 @@ export function Sidebar({
           FreqRes
         </span>
         <span className="ml-auto flex items-center gap-3">
+          <button 
+            onClick={onExportImage}
+            disabled={isExportingImage}
+            className="label-xs hover:text-white transition-colors flex items-center gap-1 relative disabled:opacity-50"
+            style={{ color: "var(--text-muted)" }}
+            title="Export Graph as Image"
+          >
+            {isExportingImage ? (
+              <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            )}
+            {isExportingImage ? 'Exporting...' : 'Export'}
+          </button>
           <button 
             onClick={onShareWorkspace}
             disabled={isSharing}

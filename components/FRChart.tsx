@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { Trace } from "@/types/audio";
 import { PARAMETER_BANDS } from "@/lib/parameterBands";
@@ -292,6 +293,7 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
     scrollZoom: true,
     displayModeBar: true,
     modeBarButtonsToRemove: [
+      "toImage", // Feature 1: disable default Plotly camera
       "zoom2d", "pan2d", "zoomIn2d", "zoomOut2d",
       "autoScale2d", "lasso2d", "select2d",
     ] as any[],
@@ -299,12 +301,6 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
     responsive: true,
     // Double-click resets to the fixed range
     doubleClick: "reset",
-    toImageButtonOptions: {
-      format: "png",
-      filename: visibleTraces.length === 1 
-        ? `${visibleTraces[0].label} Frequency Response` 
-        : `${visibleTraces.map(t => t.label).join("|")} A|B Comparison`,
-    },
   };
 
   if (visibleTraces.length === 0 && !targetObj) {
@@ -325,20 +321,22 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
     );
   }
   return (
-    <Plot
-      data={allPlotData}
-      layout={layout}
-      config={config}
-      style={{ width: "100%", height: "100%" }}
-      useResizeHandler
-      onHover={(e) => {
-        if (e.points && e.points.length > 0 && onChartHover) {
-          onChartHover(e.points[0].x as number);
-        }
-      }}
-      onUnhover={() => {
-        if (onChartHover) onChartHover(null);
-      }}
-    />
+    <div className="relative w-full h-full">
+      <Plot
+        data={allPlotData}
+        layout={layout}
+        config={config}
+        style={{ width: "100%", height: "100%" }}
+        useResizeHandler
+        onHover={(e) => {
+          if (e.points && e.points.length > 0 && onChartHover) {
+            onChartHover(e.points[0].x as number);
+          }
+        }}
+        onUnhover={() => {
+          if (onChartHover) onChartHover(null);
+        }}
+      />
+    </div>
   );
 }
