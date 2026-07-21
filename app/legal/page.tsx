@@ -62,6 +62,17 @@ export default function LegalPage() {
           </ul>
         </section>
 
+        <section className="mb-8">
+          <h2 className="text-base font-semibold mb-2">4. Credits & Acknowledgments</h2>
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
+            FreqRes owes its capabilities to the hard work of the audio community. We would like to explicitly acknowledge:
+          </p>
+          <ul className="text-sm text-[var(--text-secondary)] flex flex-col gap-2 pl-4 list-disc">
+            <li><strong>AutoEq Project:</strong> Many of the standard tuning targets (such as Diffuse Field, B&K 5128, and Harman OE 2018) are sourced from Jaakko Pasanen's excellent <a href="https://github.com/jaakkopasanen/AutoEq" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">AutoEq repository</a>.</li>
+            <li><strong>Squig.link & Reviewers:</strong> The frequency response traces imported into this app are hosted by independent audio reviewers across various Squig.link databases (such as Crinacle, Precogvision, Super*Review, Jaytiss, and others). All rights to these measurements belong to their original creators.</li>
+          </ul>
+        </section>
+
         <div className="pb-8 mt-10">
           <Link href="/" className="btn-primary inline-block">
             I Understand — Return to Dashboard
