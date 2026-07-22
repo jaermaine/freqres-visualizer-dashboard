@@ -2,15 +2,12 @@ import Link from "next/link";
 
 export function TutorialSidebar() {
   const sections = [
-    { id: "what-is-freqres", label: "What is FreqRes?" },
-    { id: "credits", label: "Inspiration & Credits" },
-    { id: "understanding-graphs", label: "Understanding the Graph" },
-    { id: "squiglink", label: "Squig.link" },
-    { id: "getting-raw-urls", label: "Getting Raw URLs" },
-    { id: "unsupported", label: "Unsupported Platforms" },
-    { id: "raw-files", label: "Raw Measurement Files" },
-    { id: "parse-failures", label: "Parse Failures" },
-    { id: "feedback", label: "Feedback & Bug Reports" },
+    { id: "url-checker", label: "URL Checker" },
+    { id: "features-overview", label: "Features Overview" },
+    { id: "url-patterns", label: "URL Patterns & Ingestion" },
+    { id: "managing-traces", label: "Trace Controls & Shortcuts" },
+    { id: "parse-failures", label: "Troubleshooting" },
+    { id: "feedback", label: "Feedback & Issues" },
   ];
 
   return (
@@ -31,7 +28,7 @@ export function TutorialSidebar() {
             <a
               key={s.id}
               href={`#${s.id}`}
-              className="block px-4 py-3 md:py-1 text-xs rounded-none hover:bg-slate-800/40 transition-colors whitespace-nowrap"
+              className="block px-4 py-3 md:py-1.5 text-xs rounded-none hover:bg-slate-800/40 transition-colors whitespace-nowrap"
               style={{ color: "var(--text-secondary)" }}
             >
               {s.label}

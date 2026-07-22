@@ -4,7 +4,6 @@ import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { TraceList } from "./TraceList";
 import { BandToggleGroup } from "./BandToggleGroup";
-import { ImportStatus } from "./HelpPanel";
 import type { Trace, ImportResult } from "@/types/audio";
 import { TUNING_TARGETS } from "@/lib/targets";
 
@@ -48,7 +47,6 @@ interface Props {
 export function Sidebar({
   traces,
   enabledBands,
-  lastResult,
   loading,
   onImport,
   onToggleTrace,
@@ -81,12 +79,24 @@ export function Sidebar({
   onLoadWorkspace,
   onDeleteWorkspace,
 }: Props) {
+  const [ingestMode, setIngestMode] = useState<"search" | "url">("search");
   const [url, setUrl] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
+
+  const [openSections, setOpenSections] = useState({
+    traces: true,
+    targets: true,
+    bands: false,
+    workspaces: false,
+  });
+
+  const toggleSection = (section: keyof typeof openSections) => {
+    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
 
   useEffect(() => {
     if (searchQuery.length < 2) {
@@ -117,328 +127,454 @@ export function Sidebar({
 
   const handleImport = useCallback(async () => {
     if (!url.trim() || loading || cooldown > 0) return;
-    const urls = url.split(/[\n, ]+/).map(u => u.trim()).filter(Boolean);
-    
-    for (const singleUrl of urls) {
-      await onImport(singleUrl);
+    const urls = url.split(/[\n, ]+/).map((u) => u.trim()).filter(Boolean);
+    let successCount = 0;
+    for (const u of urls) {
+      const ok = await onImport(u);
+      if (ok) successCount++;
     }
-    
-    setUrl("");
-    setCooldown(3); // 3-second UI rate limit
-  }, [url, onImport, loading, cooldown]);
+    if (successCount > 0) setUrl("");
+    setCooldown(2);
+  }, [url, loading, cooldown, onImport]);
 
-  const handleKey = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleImport();
-      }
-    },
-    [handleImport]
-  );
+  const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleImport();
+    }
+  };
+
+  const handleClearAllTraces = () => {
+    traces.forEach((t) => onRemoveTrace(t.id));
+  };
 
   return (
-    <>
-      {/* Mobile Backdrop */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/60 z-40 md:hidden transition-opacity" 
-          onClick={onClose}
-        />
-      )}
+    <aside
+      className={`fixed inset-y-0 left-0 z-50 flex flex-col h-full overflow-hidden transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+        isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+      }`}
+      style={{
+        width: 310,
+        minWidth: 310,
+        background: "var(--bg-surface)",
+        borderRight: "1px solid var(--border-subtle)",
+      }}
+    >
+      {/* Brand & Action Bar Header */}
+      <div className="flex items-center justify-between px-3.5 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-base)]">
+        <div className="flex items-center gap-2">
+          <span className="text-indigo-400 font-bold text-lg leading-none">〰</span>
+          <span className="font-bold text-sm tracking-tight text-[var(--text-primary)]">
+            FreqRes
+          </span>
+        </div>
 
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col h-full overflow-y-auto transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
-          isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
-        }`}
-        style={{
-          width: 300,
-          minWidth: 300,
-          background: "var(--bg-surface)",
-          borderRight: "1px solid var(--border-subtle)",
-        }}
-      >
-        {/* Header */}
-      <div
-        className="flex items-center gap-2 px-4 py-3"
-        style={{ borderBottom: "1px solid var(--border-subtle)" }}
-      >
-        <span className="text-indigo-400 text-base">〰</span>
-        <span className="font-semibold text-sm tracking-tight" style={{ color: "var(--text-primary)" }}>
-          FreqRes
-        </span>
-        <span className="ml-auto flex items-center gap-3">
-          <button 
+        {/* Header SVG Icon Actions */}
+        <div className="flex items-center gap-1.5">
+          <button
             onClick={onExportImage}
-            disabled={isExportingImage}
-            className="label-xs hover:text-white transition-colors flex items-center gap-1 relative disabled:opacity-50"
-            style={{ color: "var(--text-muted)" }}
-            title="Export Graph as Image"
+            disabled={isExportingImage || traces.length === 0}
+            className="p-1.5 rounded-md bg-[var(--bg-raised)] border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors disabled:opacity-40"
+            title="Export Graph Image (PNG)"
+            aria-label="Export PNG"
           >
             {isExportingImage ? (
-              <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
               </svg>
             ) : (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
               </svg>
             )}
-            {isExportingImage ? 'Exporting...' : 'Export'}
           </button>
-          <button 
+
+          <button
             onClick={onShareWorkspace}
             disabled={isSharing}
-            className="label-xs hover:text-white transition-colors flex items-center gap-1 relative disabled:opacity-50"
-            style={{ color: "var(--text-muted)" }}
-            title="Copy shareable workspace link"
+            className="p-1.5 rounded-md bg-[var(--bg-raised)] border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors relative disabled:opacity-40"
+            title="Share Workspace Link"
+            aria-label="Share Workspace Link"
           >
-            {isSharing ? (
-              <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3"></circle>
+              <circle cx="6" cy="12" r="3"></circle>
+              <circle cx="18" cy="19" r="3"></circle>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            </svg>
+            {isCopied && (
+              <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-2 py-0.5 rounded text-[10px] whitespace-nowrap shadow-lg z-20">
+                Copied!
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={onToggleTheme}
+            className="p-1.5 rounded-md bg-[var(--bg-raised)] border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors"
+            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            aria-label="Toggle Theme"
+          >
+            {theme === "dark" ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="5"></circle>
+                <line x1="12" y1="1" x2="12" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="23"></line>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                <line x1="1" y1="12" x2="3" y2="12"></line>
+                <line x1="21" y1="12" x2="23" y2="12"></line>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
               </svg>
             ) : (
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
               </svg>
             )}
-            {isSharing ? 'Saving...' : 'Share'}
-            {isCopied && <span className="absolute -top-6 -left-3 bg-indigo-600 text-white px-2 py-0.5 rounded text-[10px] whitespace-nowrap shadow-lg">Copied!</span>}
           </button>
+
           <Link
             href="/tutorial"
-            className="label-xs hover:text-indigo-400 transition-colors"
-            style={{ color: "var(--text-muted)" }}
+            className="p-1.5 rounded-md bg-[var(--bg-raised)] border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors"
+            title="Open Guide & Help"
+            aria-label="Guide"
           >
-            Guide
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
           </Link>
+
           {/* Mobile Close Button */}
-          <button 
-            className="md:hidden text-[var(--text-muted)] hover:text-white"
+          <button
+            className="md:hidden text-[var(--text-muted)] hover:text-white ml-1"
             onClick={onClose}
             aria-label="Close menu"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </span>
-      </div>
-
-      <div className="flex flex-col gap-4 p-3 flex-1 overflow-y-auto">
-        {/* Search Database */}
-        <section className="relative">
-          <p className="label-xs mb-1.5">Search Databases (Squiglink)</p>
-          <input
-            type="text"
-            className="flex-1 w-full bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-            placeholder="Type IEM name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {isSearching && <p className="text-xs text-[var(--text-muted)] mt-1">Searching...</p>}
-          {searchResults.length > 0 && (
-            <ul className="absolute z-10 top-[60px] left-0 w-full bg-[var(--bg-surface)] border border-[var(--border)] rounded shadow-lg max-h-48 overflow-y-auto">
-              {searchResults.map((result) => (
-                <li key={result.id}>
-                  <button
-                    type="button"
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border-b border-[var(--border-subtle)]"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      setUrl(prev => prev ? prev + '\n' + result.url : result.url);
-                      setSearchQuery("");
-                      setSearchResults([]);
-                    }}
-                  >
-                    <span className="font-semibold block">{result.name}</span>
-                    <span className="text-xs text-[var(--text-muted)] block">{result.source}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* URL Input */}
-        <section>
-          <p className="label-xs mb-1.5">Import URL</p>
-          <textarea
-            id="url-input"
-            className="flex-1 w-full bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)] disabled:opacity-50 min-h-[60px] resize-y"
-            placeholder="Paste squig.link URL(s) or raw data..."
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={handleKey}
-            spellCheck={false}
-            disabled={loading || cooldown > 0}
-          />
-          <button
-            id="import-btn"
-            className="btn-primary w-full mt-2"
-            onClick={handleImport}
-            disabled={loading || !url.trim() || cooldown > 0}
-          >
-            {loading ? "Importing…" : cooldown > 0 ? `Wait ${cooldown}s…` : "Import"}
-          </button>
-        </section>
-
-        <hr className="divider" />
-
-        {/* Workspace Management */}
-        <section className="mt-2 border-t border-[var(--border-subtle)] pt-4">
-          <p className="label-xs mb-1.5">Saved Workspaces</p>
-          <div className="flex gap-2 mb-2">
-            <input
-              type="text"
-              value={newWorkspaceName}
-              onChange={(e) => setNewWorkspaceName(e.target.value)}
-              placeholder="Workspace name..."
-              className="flex-1 bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded px-2 py-1 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-            />
-            <button
-              onClick={() => {
-                if (newWorkspaceName.trim()) {
-                  onSaveWorkspace(newWorkspaceName.trim());
-                  setNewWorkspaceName("");
-                }
-              }}
-              className="btn-primary px-3 py-1 text-xs"
-            >
-              Save
-            </button>
-          </div>
-          <div className="flex flex-col gap-1 max-h-32 overflow-y-auto">
-            {Object.keys(savedWorkspaces).map((name) => (
-              <div key={name} className="flex items-center justify-between bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded px-2 py-1.5">
-                <button
-                  className="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--accent)] truncate flex-1 text-left"
-                  onClick={() => onLoadWorkspace(name)}
-                >
-                  {name}
-                </button>
-                <button
-                  className="text-xs text-red-400 hover:text-red-500 ml-2"
-                  onClick={() => onDeleteWorkspace(name)}
-                  aria-label={`Delete workspace ${name}`}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Traces */}
-        <section>
-          <p className="label-xs mb-1.5">Traces ({traces.length})</p>
-          <TraceList
-            traces={traces}
-            onToggle={onToggleTrace}
-            onRemove={onRemoveTrace}
-            onColorChange={onColorChange}
-            onLabelChange={onLabelChange}
-            onNoteChange={onNoteChange}
-            onReorder={onReorderTraces}
-          />
-        </section>
-
-        <hr className="divider" />
-
-        {/* Parameter Bands */}
-        <section className={traces.length === 0 ? "opacity-50 pointer-events-none select-none transition-opacity" : "transition-opacity"}>
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex items-center gap-2">
-              <p className="label-xs m-0">Parameter Bands</p>
-              {enabledBands.size > 0 && (
-                <button onClick={onClearAllBands} className="text-[10px] text-indigo-400 hover:text-indigo-300">
-                  Clear All
-                </button>
-              )}
-            </div>
-            <label className="flex items-center gap-1.5 cursor-pointer text-xs" style={{ color: "var(--text-muted)" }}>
-              <input type="checkbox" checked={isInteractiveGraph} onChange={onToggleInteractiveGraph} className="accent-indigo-500" />
-              Graph Select
-            </label>
-          </div>
-          <BandToggleGroup 
-            enabled={enabledBands} 
-            onToggle={onToggleBand} 
-            onClearCategory={onClearCategory}
-            onHover={onHoverBand} 
-            disabled={traces.length === 0} 
-          />
-        </section>
-
-        <hr className="divider" />
-
-        {/* Tuning Targets */}
-        <section className="transition-opacity">
-          <p className="label-xs mb-1.5">Tuning Target</p>
-          <select
-            aria-label="Tuning Target"
-            value={selectedTarget}
-            onChange={(e) => onSelectTarget(e.target.value)}
-            className="w-full bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded text-sm px-2 py-1.5 focus:outline-none focus:border-indigo-500"
-            style={{ color: "var(--text-primary)" }}
-          >
-            <option value="none">None</option>
-            {TUNING_TARGETS.map(target => (
-              <option key={target.id} value={target.id}>{target.label}</option>
-            ))}
-          </select>
-          <label 
-            className={`flex items-center gap-1.5 mt-2 cursor-pointer text-xs transition-opacity ${selectedTarget === "none" ? "opacity-40 pointer-events-none" : ""}`} 
-            style={{ color: "var(--text-muted)" }}
-          >
-            <input 
-              type="checkbox" 
-              checked={isCompensated} 
-              onChange={onToggleCompensated} 
-              disabled={selectedTarget === "none"}
-              className="accent-indigo-500" 
-            />
-            Compensate to Target
-          </label>
-        </section>
-
-        <hr className="divider" />
-
-        <div className="pb-2 flex flex-col gap-2">
-          <Link
-            href="/tutorial"
-            className="text-xs hover:underline py-1"
-            style={{ color: "var(--text-muted)" }}
-          >
-            📖 Tutorial & Troubleshooting →
-          </Link>
-          <Link
-            href="/legal"
-            className="text-xs hover:underline py-1"
-            style={{ color: "var(--text-muted)" }}
-          >
-            ⚖️ Legal & Privacy Policy
-          </Link>
-          <a
-            href="https://github.com/jaermaine/freqres-visualizer-dashboard/issues"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs hover:underline py-1"
-            style={{ color: "var(--text-muted)" }}
-          >
-            🐛 Report Bug / Feedback
-          </a>
-          <button
-            onClick={onToggleTheme}
-            className="text-xs hover:underline py-1 text-left"
-            style={{ color: "var(--text-muted)" }}
-          >
-            {theme === 'dark' ? '☀️ Switch to Light Mode' : '🌙 Switch to Dark Mode'}
+            ✕
           </button>
         </div>
       </div>
-      </aside>
-    </>
+
+      {/* Main Scrollable Control Panel */}
+      <div className="flex flex-col gap-3.5 p-3 flex-1 overflow-y-auto custom-scrollbar">
+        {/* Unified Ingestion & Search Panel */}
+        <section className="p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)]">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-[var(--text-primary)]">Data Ingestion</span>
+            <div className="flex bg-[var(--bg-surface)] p-0.5 rounded border border-[var(--border-subtle)]">
+              <button
+                onClick={() => setIngestMode("search")}
+                className={`px-2 py-0.5 text-[10px] font-semibold rounded ${
+                  ingestMode === "search"
+                    ? "bg-indigo-600 text-white"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                Search
+              </button>
+              <button
+                onClick={() => setIngestMode("url")}
+                className={`px-2 py-0.5 text-[10px] font-semibold rounded ${
+                  ingestMode === "url"
+                    ? "bg-indigo-600 text-white"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                Paste URL
+              </button>
+            </div>
+          </div>
+
+          {ingestMode === "search" ? (
+            <div className="relative">
+              <input
+                type="text"
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-indigo-500"
+                placeholder="Search Squiglink (e.g. Aria, Gate)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {isSearching && (
+                <p className="text-[10px] text-[var(--text-muted)] mt-1">Searching database...</p>
+              )}
+              {searchResults.length > 0 && (
+                <ul className="absolute z-20 top-[38px] left-0 w-full bg-[var(--bg-surface)] border border-[var(--border)] rounded shadow-xl max-h-48 overflow-y-auto">
+                  {searchResults.map((result) => (
+                    <li key={result.id}>
+                      <button
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border-b border-[var(--border-subtle)]"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          onImport(result.url);
+                          setSearchQuery("");
+                          setSearchResults([]);
+                        }}
+                      >
+                        <span className="font-semibold block truncate">{result.name}</span>
+                        <span className="text-[10px] text-[var(--text-muted)] block truncate">
+                          {result.source}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : (
+            <div>
+              <textarea
+                id="url-input"
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-indigo-500 min-h-[55px] resize-y"
+                placeholder="Paste Squig.link or raw .txt URL(s)..."
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={handleKey}
+                spellCheck={false}
+                disabled={loading || cooldown > 0}
+              />
+              <button
+                id="import-btn"
+                className="btn-primary w-full mt-1.5 py-1.5 text-xs font-semibold"
+                onClick={handleImport}
+                disabled={loading || !url.trim() || cooldown > 0}
+              >
+                {loading ? "Importing..." : cooldown > 0 ? `Wait ${cooldown}s...` : "Import Curve(s)"}
+              </button>
+            </div>
+          )}
+        </section>
+
+        {/* Traces Section */}
+        <section className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
+          <div
+            onClick={() => toggleSection("traces")}
+            className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-[var(--text-primary)]">
+                Active Traces ({traces.length})
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {traces.length > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleClearAllTraces();
+                  }}
+                  className="text-[10px] font-semibold text-rose-400 hover:text-rose-300"
+                >
+                  Clear All
+                </button>
+              )}
+              <span className="text-xs text-[var(--text-muted)]">
+                {openSections.traces ? "▲" : "▼"}
+              </span>
+            </div>
+          </div>
+
+          {openSections.traces && (
+            <div className="p-2 border-t border-[var(--border-subtle)]">
+              <TraceList
+                traces={traces}
+                onToggle={onToggleTrace}
+                onRemove={onRemoveTrace}
+                onColorChange={onColorChange}
+                onLabelChange={onLabelChange}
+                onNoteChange={onNoteChange}
+                onReorder={onReorderTraces}
+              />
+            </div>
+          )}
+        </section>
+
+        {/* Tuning Targets Section */}
+        <section className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
+          <div
+            onClick={() => toggleSection("targets")}
+            className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none"
+          >
+            <span className="text-xs font-bold text-[var(--text-primary)]">Tuning Targets</span>
+            <span className="text-xs text-[var(--text-muted)]">
+              {openSections.targets ? "▲" : "▼"}
+            </span>
+          </div>
+
+          {openSections.targets && (
+            <div className="p-3 border-t border-[var(--border-subtle)] flex flex-col gap-2">
+              <select
+                aria-label="Tuning Target"
+                value={selectedTarget}
+                onChange={(e) => onSelectTarget(e.target.value)}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded text-xs px-2.5 py-1.5 text-[var(--text-primary)] outline-none focus:border-indigo-500"
+              >
+                <option value="none">None (Raw SPL)</option>
+                {TUNING_TARGETS.map((target) => (
+                  <option key={target.id} value={target.id}>
+                    {target.label}
+                  </option>
+                ))}
+              </select>
+
+              <label
+                className={`flex items-center gap-2 cursor-pointer text-xs transition-opacity select-none ${
+                  selectedTarget === "none" ? "opacity-40 pointer-events-none" : ""
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isCompensated}
+                  onChange={onToggleCompensated}
+                  disabled={selectedTarget === "none"}
+                  className="accent-indigo-500 w-3.5 h-3.5"
+                />
+                <span className="text-[var(--text-secondary)] font-medium">
+                  Compensate to Target (+/- dB Delta)
+                </span>
+              </label>
+            </div>
+          )}
+        </section>
+
+        {/* Parameter Bands Section */}
+        <section className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
+          <div
+            onClick={() => toggleSection("bands")}
+            className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none"
+          >
+            <span className="text-xs font-bold text-[var(--text-primary)]">Parameter Bands</span>
+            <span className="text-xs text-[var(--text-muted)]">
+              {openSections.bands ? "▲" : "▼"}
+            </span>
+          </div>
+
+          {openSections.bands && (
+            <div className="p-3 border-t border-[var(--border-subtle)] flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-1.5 cursor-pointer text-xs select-none">
+                  <input
+                    type="checkbox"
+                    checked={isInteractiveGraph}
+                    onChange={onToggleInteractiveGraph}
+                    className="accent-indigo-500 w-3.5 h-3.5"
+                  />
+                  <span className="text-[var(--text-secondary)] font-medium">Graph Hover Selection</span>
+                </label>
+                {enabledBands.size > 0 && (
+                  <button
+                    onClick={onClearAllBands}
+                    className="text-[10px] font-semibold text-indigo-400 hover:text-indigo-300"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+
+              <BandToggleGroup
+                enabled={enabledBands}
+                onToggle={onToggleBand}
+                onClearCategory={onClearCategory}
+                onHover={onHoverBand}
+                disabled={traces.length === 0}
+              />
+            </div>
+          )}
+        </section>
+
+        {/* Saved Workspaces Section */}
+        <section className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
+          <div
+            onClick={() => toggleSection("workspaces")}
+            className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none"
+          >
+            <span className="text-xs font-bold text-[var(--text-primary)]">
+              Saved Workspaces ({Object.keys(savedWorkspaces).length})
+            </span>
+            <span className="text-xs text-[var(--text-muted)]">
+              {openSections.workspaces ? "▲" : "▼"}
+            </span>
+          </div>
+
+          {openSections.workspaces && (
+            <div className="p-3 border-t border-[var(--border-subtle)] flex flex-col gap-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newWorkspaceName}
+                  onChange={(e) => setNewWorkspaceName(e.target.value)}
+                  placeholder="Workspace name..."
+                  className="flex-1 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-2.5 py-1 text-xs text-[var(--text-primary)] outline-none focus:border-indigo-500"
+                />
+                <button
+                  onClick={() => {
+                    if (newWorkspaceName.trim()) {
+                      onSaveWorkspace(newWorkspaceName.trim());
+                      setNewWorkspaceName("");
+                    }
+                  }}
+                  className="btn-primary px-3 py-1 text-xs font-semibold shrink-0"
+                >
+                  Save
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar mt-1">
+                {Object.keys(savedWorkspaces).length === 0 ? (
+                  <p className="text-[11px] text-[var(--text-muted)] py-1">No saved workspaces yet.</p>
+                ) : (
+                  Object.keys(savedWorkspaces).map((name) => (
+                    <div
+                      key={name}
+                      className="flex items-center justify-between bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-2.5 py-1 text-xs"
+                    >
+                      <button
+                        className="font-medium text-[var(--text-primary)] hover:text-indigo-400 truncate flex-1 text-left"
+                        onClick={() => onLoadWorkspace(name)}
+                      >
+                        {name}
+                      </button>
+                      <button
+                        className="text-[11px] text-rose-400 hover:text-rose-300 ml-2"
+                        onClick={() => onDeleteWorkspace(name)}
+                        aria-label={`Delete workspace ${name}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* Clean Footer Bar */}
+      <div className="p-3 border-t border-[var(--border-subtle)] bg-[var(--bg-base)] flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+        <Link href="/tutorial" className="hover:text-[var(--text-primary)] transition-colors">
+          Guide
+        </Link>
+        <span>•</span>
+        <Link href="/legal" className="hover:text-[var(--text-primary)] transition-colors">
+          Legal
+        </Link>
+        <span>•</span>
+        <a
+          href="https://github.com/jaermaine/freqres-visualizer-dashboard/issues"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-[var(--text-primary)] transition-colors"
+        >
+          Feedback
+        </a>
+      </div>
+    </aside>
   );
 }
