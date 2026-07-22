@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import type { Trace } from "@/types/audio";
+import { getTraceSourceLabel } from "@/lib/sourceUtils";
 
 interface Props {
   trace: Trace;
@@ -13,6 +14,7 @@ interface Props {
 export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelChange, onNoteChange }: Props) {
   const [showNotes, setShowNotes] = useState(!!trace.notes);
   const [localColor, setLocalColor] = useState(trace.color);
+  const sourceLabel = getTraceSourceLabel(trace);
 
   useEffect(() => {
     setLocalColor(trace.color);
@@ -56,14 +58,21 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
         title="Change color"
         aria-label={`Change color for ${trace.label}`}
       />
-      <input
-        type="text"
-        value={trace.label}
-        onChange={(e) => onLabelChange(trace.id, e.target.value)}
-        className="flex-1 min-w-0 bg-transparent text-sm text-slate-200 outline-none"
-        style={{ fontFamily: "Inter, sans-serif" }}
-        aria-label="Trace label"
-      />
+      <div className="flex-1 min-w-0 flex flex-col">
+        <input
+          type="text"
+          value={trace.label}
+          onChange={(e) => onLabelChange(trace.id, e.target.value)}
+          className="w-full bg-transparent text-sm text-slate-200 outline-none truncate"
+          style={{ fontFamily: "Inter, sans-serif" }}
+          aria-label="Trace label"
+        />
+        {sourceLabel && (
+          <span className="text-[10px] text-[var(--text-muted)] truncate opacity-75">
+            via {sourceLabel}
+          </span>
+        )}
+      </div>
         <button
           onClick={() => setShowNotes(!showNotes)}
           className="text-slate-500 hover:text-[var(--text-primary)] flex-shrink-0 text-sm leading-none"

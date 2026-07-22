@@ -4,12 +4,14 @@ import { useState, useCallback, useId, useEffect, useRef } from "react";
 import { Sidebar } from "./Sidebar";
 import { FRChart } from "./FRChart";
 import { DifferenceTable } from "./DifferenceTable";
+import { ExportStudioModal, type ExportOptions } from "./ExportStudioModal";
 import { ImportStatus } from "./HelpPanel";
 import { OnboardingModal } from "./OnboardingModal";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import type { Trace, ImportResult } from "@/types/audio";
 import { PARAMETER_BANDS } from "@/lib/parameterBands";
 
+import { getTraceSourceLabel, getReviewerName } from "@/lib/sourceUtils";
 import { PALETTE } from '@/lib/colors';
 
 function getAvailableColor(traces: Trace[], currentLabel: string, theme: string): string {
@@ -341,44 +343,111 @@ export function AppShell() {
       }
   }, [traces, selectedTarget, enabledBands, isCompensated, isInteractiveGraph]);
 
-  const handleExportImage = useCallback(async () => {
+  const [isExportStudioOpen, setIsExportStudioOpen] = useState(false);
+
+  const renderGraphSnapshot = useCallback(async (options: ExportOptions, targetWidth?: number) => {
+    const visibleTraces = traces.filter((t) => t.visible);
+    if (visibleTraces.length === 0) return null;
+
+    const Plotly = (await import('plotly.js-basic-dist-min')).default;
+    const graphDiv = document.querySelector('.js-plotly-plot') as any;
+    if (!graphDiv) return null;
+
+    let width = targetWidth || 1200;
+    let height = 675;
+    if (options.aspectRatio === '1:1') {
+      width = targetWidth || 900;
+      height = targetWidth || 900;
+    } else if (options.aspectRatio === '4:3') {
+      width = targetWidth || 1200;
+      height = Math.round((width * 3) / 4);
+    } else {
+      height = Math.round((width * 9) / 16);
+    }
+
+    const isDark = options.exportTheme === 'dark';
+
+    // Store original layout theme attributes
+    const origLayout = {
+      paper_bgcolor: graphDiv.layout.paper_bgcolor,
+      plot_bgcolor: graphDiv.layout.plot_bgcolor,
+      'xaxis.gridcolor': graphDiv.layout.xaxis?.gridcolor,
+      'xaxis.tickfont.color': graphDiv.layout.xaxis?.tickfont?.color,
+      'yaxis.gridcolor': graphDiv.layout.yaxis?.gridcolor,
+      'yaxis.tickfont.color': graphDiv.layout.yaxis?.tickfont?.color,
+    };
+
+    // Apply target theme layout for snapshot
+    const exportThemeLayout = {
+      paper_bgcolor: isDark ? "#0d0f14" : "#ffffff",
+      plot_bgcolor: isDark ? "#0d0f14" : "#ffffff",
+      'xaxis.gridcolor': isDark ? "#1c2030" : "#e2e8f0",
+      'xaxis.tickfont.color': isDark ? "#8892a4" : "#475569",
+      'yaxis.gridcolor': isDark ? "#1c2030" : "#e2e8f0",
+      'yaxis.tickfont.color': isDark ? "#8892a4" : "#475569",
+    };
+
+    await Plotly.relayout(graphDiv, exportThemeLayout);
+
+    const dataUrl = await Plotly.toImage(graphDiv, {
+      format: 'png',
+      width,
+      height,
+    });
+
+    // Revert layout back to current UI theme
+    await Plotly.relayout(graphDiv, origLayout);
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    const img = new Image();
+    img.src = dataUrl;
+    await new Promise((resolve) => { img.onload = resolve; });
+
+    canvas.width = width;
+    canvas.height = height;
+
+    // Fill solid background
+    ctx.fillStyle = isDark ? "#0d0f14" : "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+
+    // Render Watermark & Reviewer Attribution
+    const fontSize = Math.max(12, Math.round(width * 0.018));
+    ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+    ctx.fillStyle = isDark ? "rgba(255, 255, 255, 0.5)" : "rgba(15, 23, 42, 0.5)";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "bottom";
+
+    const reviewers = Array.from(new Set(visibleTraces.map(getReviewerName).filter(Boolean)));
+
+    let watermarkString = "FreqRes";
+    if (options.includeSourceCredit && reviewers.length > 0) {
+      watermarkString += ` • Measured by ${reviewers.join(", ")}`;
+    }
+
+    ctx.fillText(watermarkString, width - 20, height - 16);
+
+    return canvas.toDataURL("image/png");
+  }, [traces]);
+
+  const handleGeneratePreview = useCallback(async (options: ExportOptions) => {
+    return await renderGraphSnapshot(options, 600);
+  }, [renderGraphSnapshot]);
+
+  const handleExportImage = useCallback(async (options: ExportOptions) => {
     const visibleTraces = traces.filter((t) => t.visible);
     if (visibleTraces.length === 0) return;
     setIsExportingImage(true);
     
     try {
-      const Plotly = (await import('plotly.js-basic-dist-min')).default;
-      const graphDiv = document.querySelector('.js-plotly-plot') as HTMLElement;
-      if (!graphDiv) return;
+      const dataUrl = await renderGraphSnapshot(options);
+      if (!dataUrl) return;
 
-      const dataUrl = await Plotly.toImage(graphDiv, {
-        format: 'png',
-        width: 1200,
-        height: 800,
-      });
-
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise((resolve) => { img.onload = resolve; });
-
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-
-      // Add watermark
-      ctx.font = "bold 24px Inter, sans-serif";
-      ctx.fillStyle = "rgba(150, 150, 150, 0.5)";
-      ctx.textAlign = "right";
-      ctx.textBaseline = "bottom";
-      ctx.fillText("FreqRes", canvas.width - 40, canvas.height - 40);
-
-      const finalDataUrl = canvas.toDataURL("image/png");
       const a = document.createElement("a");
-      a.href = finalDataUrl;
+      a.href = dataUrl;
       const filename = visibleTraces.length === 1 
         ? `${visibleTraces[0].label} Frequency Response.png` 
         : `${visibleTraces.map(t => t.label).join(" vs ")} Comparison.png`;
@@ -391,7 +460,7 @@ export function AppShell() {
     } finally {
       setIsExportingImage(false);
     }
-  }, [traces]);
+  }, [traces, renderGraphSnapshot]);
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -610,7 +679,7 @@ export function AppShell() {
           isCompensated={isCompensated}
           onToggleCompensated={() => setIsCompensated(p => !p)}
           onShareWorkspace={handleShareWorkspace}
-          onExportImage={handleExportImage}
+          onExportImage={() => setIsExportStudioOpen(true)}
           isCopied={isCopied}
           isSharing={isSharing}
           isExportingImage={isExportingImage}
@@ -679,6 +748,16 @@ export function AppShell() {
           <ImportStatus result={lastResult} loading={loading} />
         </div>
       </main>
+
+      <ExportStudioModal
+        isOpen={isExportStudioOpen}
+        onClose={() => setIsExportStudioOpen(false)}
+        traces={traces}
+        currentTheme={theme}
+        onExport={handleExportImage}
+        generatePreview={handleGeneratePreview}
+        isExporting={isExportingImage}
+      />
 
       {showOnboarding && <OnboardingModal onClose={handleCloseOnboarding} />}
     </div>

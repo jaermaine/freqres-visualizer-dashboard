@@ -26,6 +26,10 @@ This document tracks the 10-feature power-user expansion for **FreqRes**.
 - **Status:** ✅ Completed
 - **Details:** Enabled vertical dashed crosshair spike lines that follow the mouse cursor across the frequency spectrum, paired with a theme-styled unified hover tooltip displaying exact dB SPL or Delta values for all active traces at the hovered frequency.
 
+### 9. Enhanced PNG Export Studio & Watermark Themes
+- **Status:** ✅ Completed
+- **Details:** Lightweight customization modal with live image preview, aspect ratio selection (`16:9`, `1:1`, `4:3`), theme style rendering (`Dark Mode` vs `Light Mode` export backgrounds), custom reviewer watermark fields, and reviewer attribution credits (e.g., `Measured by Precogvision`).
+
 ---
 
 ## Remaining Feature Suggestions
