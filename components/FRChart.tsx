@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import type { Trace } from "@/types/audio";
 import { PARAMETER_BANDS } from "@/lib/parameterBands";
@@ -22,7 +22,69 @@ interface Props {
 const X_MIN = Math.log10(20);
 const X_MAX = Math.log10(20000);
 
+const ZOOM_PRESETS = [
+  { id: "full", label: "Full (20-20k)", range: [X_MIN, X_MAX] as [number, number] },
+  { id: "bass", label: "Bass (20-300Hz)", range: [Math.log10(20), Math.log10(300)] as [number, number] },
+  { id: "mids", label: "Mids (300-3k)", range: [Math.log10(300), Math.log10(3000)] as [number, number] },
+  { id: "treble", label: "Treble (3k-20k)", range: [Math.log10(3000), Math.log10(20000)] as [number, number] },
+];
+
 export function FRChart({ traces, enabledBands, hoveredBands = new Set(), selectedTarget, isCompensated, onChartHover, theme = 'dark' }: Props) {
+  const [xAxisRange, setXAxisRange] = useState<[number, number]>([X_MIN, X_MAX]);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const hoverHzRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const container = chartContainerRef.current;
+    if (!container) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 0.85 : 1.18;
+      setXAxisRange((prevRange) => {
+        const currentMin = prevRange[0];
+        const currentMax = prevRange[1];
+        const currentWidth = currentMax - currentMin;
+        let newWidth = currentWidth * zoomFactor;
+
+        const maxWidth = X_MAX - X_MIN;
+        const minWidth = 0.15;
+
+        if (newWidth >= maxWidth) {
+          return [X_MIN, X_MAX];
+        }
+        if (newWidth < minWidth) {
+          newWidth = minWidth;
+        }
+
+        let centerLog = (currentMin + currentMax) / 2;
+        if (hoverHzRef.current !== null && hoverHzRef.current >= 20 && hoverHzRef.current <= 20000) {
+          centerLog = Math.log10(hoverHzRef.current);
+        }
+
+        const ratio = (centerLog - currentMin) / currentWidth;
+        let newMin = centerLog - ratio * newWidth;
+        let newMax = centerLog + (1 - ratio) * newWidth;
+
+        if (newMin < X_MIN) {
+          newMin = X_MIN;
+          newMax = X_MIN + newWidth;
+        }
+        if (newMax > X_MAX) {
+          newMax = X_MAX;
+          newMin = X_MAX - newWidth;
+        }
+
+        return [newMin, newMax];
+      });
+    };
+
+    container.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      container.removeEventListener("wheel", onWheel);
+    };
+  }, []);
+
   const visibleTraces = traces.filter((t) => t.visible && t.normalized.hz.length > 0);
   const targetObj = TUNING_TARGETS.find(t => t.id === selectedTarget);
 
@@ -34,6 +96,7 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
   const TARGET_COLOR = theme === 'light' ? "#94a3b8" : "#aebbc9";
   const LEGEND_BG = theme === 'light' ? "rgba(255,255,255,0.85)" : "rgba(13,15,20,0.85)";
   const LEGEND_BORDER = theme === 'light' ? "#cbd5e1" : "#252b3a";
+  const BORDER_COLOR = theme === 'light' ? "#cbd5e1" : "#2e364f";
 
   // Log-linear interpolation for precise target dB matching at arbitrary frequencies
   const interpolateTarget = (hz: number): number => {
@@ -248,9 +311,12 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
 
     xaxis: {
       type: "log",
-      // Lock to 20–20 kHz — prevent zooming past the useful range
-      range: [X_MIN, X_MAX],
+      range: xAxisRange,
       fixedrange: false,
+      showline: true,
+      linewidth: 1.5,
+      linecolor: BORDER_COLOR,
+      mirror: "all",
       tickvals: customTickVals,
       ticktext: customTickText,
       gridcolor: GRID_COLOR,
@@ -261,7 +327,11 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
 
     yaxis: {
       range: [yMin, yMax],
-      fixedrange: false,
+      fixedrange: true, // Fixed Y-axis scale to prevent vertical unreadable distortion
+      showline: true,
+      linewidth: 1.5,
+      linecolor: BORDER_COLOR,
+      mirror: "all",
       tickvals: yTickVals,
       ticktext: yTickText,
       gridcolor: GRID_COLOR,
@@ -321,22 +391,79 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
     );
   }
   return (
-    <div className="relative w-full h-full">
-      <Plot
-        data={allPlotData}
-        layout={layout}
-        config={config}
-        style={{ width: "100%", height: "100%" }}
-        useResizeHandler
-        onHover={(e) => {
-          if (e.points && e.points.length > 0 && onChartHover) {
-            onChartHover(e.points[0].x as number);
-          }
-        }}
-        onUnhover={() => {
-          if (onChartHover) onChartHover(null);
-        }}
-      />
+    <div ref={chartContainerRef} className="relative w-full h-full flex flex-col">
+      {/* Zoom to Region Toolbar */}
+      <div className={`flex items-center justify-between px-3 py-1.5 border-b text-xs shrink-0 ${
+        theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-[#151923] border-slate-800 text-slate-300'
+      }`}>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-semibold text-[11px] tracking-wider uppercase opacity-70 mr-1">Zoom:</span>
+          {ZOOM_PRESETS.map((preset) => {
+            const isActive = Math.abs(xAxisRange[0] - preset.range[0]) < 0.01 && Math.abs(xAxisRange[1] - preset.range[1]) < 0.01;
+            return (
+              <button
+                key={preset.id}
+                onClick={() => setXAxisRange(preset.range)}
+                className={`px-2.5 py-0.5 rounded text-xs font-medium transition-colors ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : theme === 'light'
+                    ? 'bg-slate-200 hover:bg-slate-300 text-slate-700'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                }`}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
+        </div>
+        <span className="text-[11px] opacity-60 hidden md:inline">Use mouse scroll wheel to zoom</span>
+      </div>
+
+      <div className="relative w-full flex-1 min-h-0">
+        <Plot
+          data={allPlotData}
+          layout={layout}
+          config={config}
+          style={{ width: "100%", height: "100%" }}
+          useResizeHandler
+          onHover={(e) => {
+            if (e.points && e.points.length > 0) {
+              const hz = e.points[0].x as number;
+              hoverHzRef.current = hz;
+              if (onChartHover) onChartHover(hz);
+            }
+          }}
+          onUnhover={() => {
+            hoverHzRef.current = null;
+            if (onChartHover) onChartHover(null);
+          }}
+          onRelayout={(eventData: any) => {
+            if (eventData["xaxis.range[0]"] !== undefined && eventData["xaxis.range[1]"] !== undefined) {
+              let r0 = eventData["xaxis.range[0]"];
+              let r1 = eventData["xaxis.range[1]"];
+              if (r1 - r0 >= X_MAX - X_MIN) {
+                r0 = X_MIN;
+                r1 = X_MAX;
+              } else {
+                if (r0 < X_MIN) {
+                  const diff = X_MIN - r0;
+                  r0 = X_MIN;
+                  r1 = Math.min(X_MAX, r1 + diff);
+                }
+                if (r1 > X_MAX) {
+                  const diff = r1 - X_MAX;
+                  r1 = X_MAX;
+                  r0 = Math.max(X_MIN, r0 - diff);
+                }
+              }
+              setXAxisRange([r0, r1]);
+            } else if (eventData["xaxis.autorange"] || eventData["autosize"]) {
+              setXAxisRange([X_MIN, X_MAX]);
+            }
+          }}
+        />
+      </div>
     </div>
   );
 }

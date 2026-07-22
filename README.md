@@ -18,6 +18,7 @@ Instead of navigating complex proprietary databases or downloading text files ma
   - **Workspace Management:** Save your current trace configurations (colors, targets, visibility) locally under custom names, and easily switch between different comparisons.
   - **Keyboard Shortcuts:** Rapidly toggle the visibility of traces using number keys (`1-9`), undo/redo actions, and quickly share workspaces (`Ctrl+S`).
   - **Trace Notes:** Attach specific, persistent text notes (e.g. "Foam mod applied") to any imported curve.
+  - **Zoom to Region & Scroll Zoom:** Instantly crop frequency ranges using quick preset buttons (`Full`, `Bass`, `Mids`, `Treble`) or use smooth mouse wheel scroll zoom on desktop.
   - **A/B Difference Table:** When exactly two traces are visible, a sleek table automatically appears below the graph displaying precise, dynamically calculated delta values across key frequencies (20, 100, 1k, 3k, 5k, 10k Hz), complete with target compensation support and swap functionality.
 - **Progressive Web App (PWA):** Install FreqRes as a standalone app on your desktop or mobile device. Offline caching is built-in for lightning-fast loads.
 - **Frictionless Onboarding:** First-time users are greeted with a quick 3-step feature highlight modal that automatically remembers dismissal state via local storage.

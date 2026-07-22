@@ -158,6 +158,7 @@ export default function TutorialPage() {
             <li><strong>Autocomplete Search:</strong> Use the "Search Databases" box to instantly query Squiglink databases (like Jaytiss or Super*Review). Clicking an IEM automatically imports it.</li>
             <li><strong>Bulk Import:</strong> Paste multiple URLs separated by newlines directly into the Import URL box to fetch them all at once.</li>
             <li><strong>Workspaces:</strong> Have a set of traces, targets, and colors you use often? Type a name in the "Saved Workspaces" section and hit Save. Your entire state is persisted locally.</li>
+            <li><strong>Zoom to Region & Scroll Zoom:</strong> Focus directly on specific frequency bands using the `Full`, `Bass`, `Mids`, and `Treble` preset buttons above the graph, or use your desktop mouse scroll wheel over the chart to smoothly zoom in and out centered on your cursor.</li>
             <li><strong>Export High-Res Graph:</strong> Want to share a screenshot? Click the "Export" button in the sidebar (next to the Share button) to instantly generate and download a clean, high-resolution PNG image of your graph with a professional watermark.</li>
             <li><strong>PWA Support:</strong> You can "Install" FreqRes as a standalone app via your browser's address bar for lightning fast access and offline support.</li>
           </ul>
