@@ -65,7 +65,7 @@ export function BandToggleGroup({ enabled, onToggle, onClearCategory, onHover, d
                   return (
                     <label
                       key={band.id}
-                      className="flex items-center gap-2 cursor-pointer py-1 px-1 rounded hover:bg-slate-800/40 select-none"
+                      className="flex items-center gap-2 cursor-pointer py-1 px-1 rounded hover:bg-[var(--bg-hover)] select-none"
                       onMouseEnter={() => onHover?.(band.id)}
                       onMouseLeave={() => onHover?.(null)}
                     >

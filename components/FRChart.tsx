@@ -91,12 +91,12 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
   // Theme-aware colors
   const CHART_BG   = theme === 'light' ? "#f8fafc" : "#0d0f14";
   const GRID_COLOR = theme === 'light' ? "#e2e8f0" : "#1c2030";
-  const TEXT_COLOR = theme === 'light' ? "#64748b" : "#8892a4";
-  const ZERO_COLOR = theme === 'light' ? "#cbd5e1" : "#2a3048";
-  const TARGET_COLOR = theme === 'light' ? "#94a3b8" : "#aebbc9";
-  const LEGEND_BG = theme === 'light' ? "rgba(255,255,255,0.85)" : "rgba(13,15,20,0.85)";
+  const TEXT_COLOR = theme === 'light' ? "#1e293b" : "#8892a4";
+  const ZERO_COLOR = theme === 'light' ? "#94a3b8" : "#2a3048";
+  const TARGET_COLOR = theme === 'light' ? "#64748b" : "#aebbc9";
+  const LEGEND_BG = theme === 'light' ? "rgba(255,255,255,0.92)" : "rgba(13,15,20,0.85)";
   const LEGEND_BORDER = theme === 'light' ? "#cbd5e1" : "#252b3a";
-  const BORDER_COLOR = theme === 'light' ? "#cbd5e1" : "#2e364f";
+  const BORDER_COLOR = theme === 'light' ? "#94a3b8" : "#2e364f";
 
   // Log-linear interpolation for precise target dB matching at arbitrary frequencies
   const interpolateTarget = (hz: number): number => {

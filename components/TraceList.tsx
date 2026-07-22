@@ -32,7 +32,7 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
   return (
     <div className="flex flex-col gap-1 p-1.5 rounded bg-[var(--bg-raised)] border border-[var(--border-subtle)] group">
       <div className="flex items-center gap-2">
-        <div className="cursor-grab text-slate-500 opacity-50 group-hover:opacity-100 flex-shrink-0" title="Drag to reorder">
+        <div className="cursor-grab text-[var(--text-muted)] opacity-50 group-hover:opacity-100 flex-shrink-0" title="Drag to reorder">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="8" y1="6" x2="21" y2="6"></line>
           <line x1="8" y1="12" x2="21" y2="12"></line>
@@ -63,7 +63,7 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
           type="text"
           value={trace.label}
           onChange={(e) => onLabelChange(trace.id, e.target.value)}
-          className="w-full bg-transparent text-sm text-slate-200 outline-none truncate"
+          className="w-full bg-transparent text-sm text-[var(--text-primary)] outline-none truncate font-medium"
           style={{ fontFamily: "Inter, sans-serif" }}
           aria-label="Trace label"
         />
@@ -75,7 +75,7 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
       </div>
         <button
           onClick={() => setShowNotes(!showNotes)}
-          className="text-slate-500 hover:text-[var(--text-primary)] flex-shrink-0 text-sm leading-none"
+          className="text-[var(--text-muted)] hover:text-[var(--text-primary)] flex-shrink-0 text-sm leading-none"
           title="Toggle notes"
           aria-label={`Toggle notes for ${trace.label}`}
         >
@@ -83,7 +83,7 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
         </button>
         <button
           onClick={() => onRemove(trace.id)}
-          className="text-slate-600 hover:text-red-400 flex-shrink-0 text-sm leading-none"
+          className="text-[var(--text-muted)] hover:text-rose-400 flex-shrink-0 text-sm leading-none"
           title="Remove trace"
           aria-label={`Remove ${trace.label}`}
         >
