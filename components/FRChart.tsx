@@ -158,8 +158,8 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
       // Linear shape preserves real peaks/dips; spline hides them
       line: { color: t.color, width: 2.8, shape: "linear" },
       hovertemplate: isCompensated
-        ? "<b>%{data.name}</b><br>%{x:.0f} Hz<br>%{customdata} dB<extra></extra>"
-        : "<b>%{data.name}</b><br>%{x:.0f} Hz<br>%{y:.1f} dB<extra></extra>",
+        ? "%{customdata} dB<extra></extra>"
+        : "%{y:.1f} dB<extra></extra>",
     };
   });
 
@@ -209,8 +209,7 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
         color: bandColor,
         width: 10,
       },
-      hoverinfo: "text",
-      hovertemplate: `<b>${band.label}</b>${!isLocked ? " <span style='font-size:10px;color:#8892a4'>(Click to lock)</span>" : ""}<extra></extra>`,
+      hoverinfo: "skip",
       showlegend: false, // hide from legend
     });
 
@@ -282,8 +281,8 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
       },
       opacity: 0.8,
       hovertemplate: isCompensated
-        ? `<b>${targetObj.label}</b><br>%{x:.0f} Hz<br>%{customdata} dB<extra></extra>`
-        : `<b>${targetObj.label}</b><br>%{x:.0f} Hz<br>%{y:.1f} dB<extra></extra>`,
+        ? "%{customdata} dB<extra></extra>"
+        : "%{y:.1f} dB<extra></extra>",
     });
   }
 
@@ -317,6 +316,12 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
       linewidth: 1.5,
       linecolor: BORDER_COLOR,
       mirror: "all",
+      showspikes: true,
+      spikemode: "across",
+      spikesnap: "cursor",
+      spikecolor: theme === 'light' ? "#64748b" : "#475569",
+      spikethickness: 1.5,
+      spikedash: "dash",
       tickvals: customTickVals,
       ticktext: customTickText,
       gridcolor: GRID_COLOR,
@@ -353,7 +358,15 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
       font: { size: 11, color: TEXT_COLOR },
     },
 
-    hovermode: "x",
+    hovermode: "x unified",
+    hoverlabel: {
+      bgcolor: theme === 'light' ? "rgba(255, 255, 255, 0.95)" : "rgba(15, 23, 42, 0.95)",
+      bordercolor: theme === 'light' ? "#cbd5e1" : "#334155",
+      font: {
+        color: theme === 'light' ? "#0f172a" : "#f8fafc",
+        size: 11,
+      },
+    },
     // Allow pan/zoom on touch devices
     dragmode: "pan",
   };
