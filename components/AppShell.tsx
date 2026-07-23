@@ -117,14 +117,14 @@ export function AppShell() {
     setShowOnboarding(false);
   };
 
-  const handleImport = useCallback(async (url: string) => {
+  const handleImport = useCallback(async (url: string, channelMode: "separate" | "avg" = "separate") => {
     setLoading(true);
     setLastResult(null);
     try {
       const res = await fetch("/api/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, channelMode }),
       });
       const data: ImportResult = await res.json();
       setLastResult(data);
@@ -152,6 +152,7 @@ export function AppShell() {
             currentTraces.push({
               id: `${uid}-${Date.now()}-${currentTraces.length}`,
               label: curve.label,
+              channel: curve.channel,
               color: getAvailableColor(currentTraces, curve.label, theme),
               normalized: curve.normalized,
               source: data.source,
@@ -527,6 +528,117 @@ export function AppShell() {
     });
   };
 
+  const handleToggleChannelMode = useCallback(async (id: string) => {
+    let target: Trace | undefined;
+    setTraces((prev) => {
+      target = prev.find((t) => t.id === id);
+      return prev;
+    });
+
+    if (!target) return;
+
+    // If rawChannels is missing but it's from a squiglink/hangout URL, fetch both channels on demand
+    let fetchedChannels = target.rawChannels;
+    if (!fetchedChannels && (target.source.kind === "squiglink-share-url" || target.source.kind === "hangout-graph-url")) {
+      try {
+        setLoading(true);
+        const modelRaw = target.source.models[0]?.raw || target.label;
+        const shareParam = encodeURIComponent(modelRaw);
+        const fetchUrl = `${target.source.baseUrl}?share=${shareParam}`;
+        
+        const res = await fetch("/api/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: fetchUrl, channelMode: "separate" }),
+        });
+        const data = await res.json();
+        if (data.ok && data.mode === "fr-data" && data.curves.length >= 2) {
+          const leftCurve = data.curves.find((c: any) => c.channel === "L") || data.curves[0];
+          const rightCurve = data.curves.find((c: any) => c.channel === "R") || data.curves[1];
+          if (leftCurve && rightCurve) {
+            fetchedChannels = {
+              left: leftCurve.normalized,
+              right: rightCurve.normalized,
+            };
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch L/R channels on demand:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    setTraces((prev) => {
+      const index = prev.findIndex((t) => t.id === id);
+      if (index === -1) return prev;
+      const currentTarget = { ...prev[index], rawChannels: fetchedChannels || prev[index].rawChannels };
+      const raw = currentTarget.rawChannels;
+
+      // Split Average trace into L & R traces
+      if ((!currentTarget.channel || currentTarget.channel === "avg") && raw?.left && raw?.right) {
+        const baseName = currentTarget.label.replace(/\s*\((Avg|Average|[LR])\)\s*/gi, "").trim();
+        const leftTrace: Trace = {
+          id: `${uid}-${Date.now()}-L`,
+          label: `${baseName} (L)`,
+          channel: "L",
+          color: currentTarget.color,
+          normalized: raw.left,
+          source: currentTarget.source,
+          visible: currentTarget.visible,
+          notes: currentTarget.notes,
+          rawChannels: raw,
+        };
+        const rightTrace: Trace = {
+          id: `${uid}-${Date.now()}-R`,
+          label: `${baseName} (R)`,
+          channel: "R",
+          color: getAvailableColor(prev, `${baseName} (R)`, theme),
+          normalized: raw.right,
+          source: currentTarget.source,
+          visible: currentTarget.visible,
+          notes: currentTarget.notes,
+          rawChannels: raw,
+        };
+        const next = [...prev];
+        next.splice(index, 1, leftTrace, rightTrace);
+        return next;
+      }
+
+      // Combine L and R traces into Average trace
+      if ((currentTarget.channel === "L" || currentTarget.channel === "R") && raw?.left && raw?.right) {
+        const baseName = currentTarget.label.replace(/\s*\([LR]\)\s*$/gi, "").trim();
+        const matchingTraces = prev.filter((t) => {
+          const name = t.label.replace(/\s*\([LR]\)\s*$/gi, "").trim();
+          return name === baseName;
+        });
+
+        const hz = raw.left.hz;
+        const avgDb = hz.map((_, i) => (raw.left!.db[i] + raw.right!.db[i]) / 2);
+
+        const avgTrace: Trace = {
+          id: `${uid}-${Date.now()}-avg`,
+          label: baseName,
+          channel: "avg",
+          color: currentTarget.color,
+          normalized: { hz, db: avgDb },
+          source: currentTarget.source,
+          visible: currentTarget.visible,
+          notes: currentTarget.notes,
+          rawChannels: raw,
+        };
+
+        const matchingIds = new Set(matchingTraces.map((t) => t.id));
+        const next = prev.filter((t) => !matchingIds.has(t.id));
+        const insertIdx = Math.min(index, next.length);
+        next.splice(insertIdx, 0, avgTrace);
+        return next;
+      }
+
+      return prev;
+    });
+  }, [uid, theme]);
+
   const handleToggleBand = useCallback((bandId: string) => {
     setEnabledBands((prev) => {
       const next = new Set(prev);
@@ -691,6 +803,7 @@ export function AppShell() {
           onSaveWorkspace={handleSaveWorkspace}
           onLoadWorkspace={handleLoadWorkspace}
           onDeleteWorkspace={handleDeleteWorkspace}
+          onToggleChannelMode={handleToggleChannelMode}
         />
       </ErrorBoundary>
       <main className="flex-1 flex flex-col relative h-full bg-[var(--bg-base)] overflow-hidden">

@@ -25,10 +25,11 @@ type BrandEntry = {
   phones: PhoneEntry[];
 };
 
-type ResolvedFile = {
+export type ResolvedFile = {
   label: string;
-  rawUrl: string;
-  fallbackUrl?: string;
+  leftUrl: string;
+  rightUrl: string;
+  fallbackUrl: string;
 };
 
 // Simple process-lifetime cache: avoids re-fetching phone_book for the same baseUrl
@@ -77,11 +78,7 @@ function matchScore(file: string, token: string): number {
  * Resolve model tokens from a squig.link share URL into raw .txt file URLs.
  *
  * CrinGraph sites serve per-channel files: "{file} L.txt" and "{file} R.txt".
- * We prefer the L channel; fall back to the bare filename if no channel suffix is used.
- *
- * @param baseUrl e.g. "https://precog.squig.link/" or "https://graph.hangout.audio/iem/5128/"
- * @param tokens  model token strings from the `?share=` parameter
- * @returns       Array of { label, rawUrl } — may be empty if none resolve
+ * Returns leftUrl, rightUrl, and fallbackUrl for each resolved model.
  */
 export async function resolveSquigUrls(
   baseUrl: string,
@@ -118,7 +115,8 @@ export async function resolveSquigUrls(
 
             bestResult = {
               label: resolvedLabel,
-              rawUrl: `${base} L.txt`,
+              leftUrl: `${base} L.txt`,
+              rightUrl: `${base} R.txt`,
               fallbackUrl: `${base}.txt`,
             };
             if (score === 2) break; // exact match — no need to search further in this phone

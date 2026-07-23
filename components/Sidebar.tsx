@@ -12,7 +12,7 @@ interface Props {
   enabledBands: Set<string>;
   lastResult: ImportResult | null;
   loading: boolean;
-  onImport: (url: string) => Promise<boolean>;
+  onImport: (url: string, channelMode?: "separate" | "avg") => Promise<boolean>;
   onToggleTrace: (id: string) => void;
   onRemoveTrace: (id: string) => void;
   onColorChange: (id: string, color: string) => void;
@@ -42,6 +42,7 @@ interface Props {
   onSaveWorkspace: (name: string) => void;
   onLoadWorkspace: (name: string) => void;
   onDeleteWorkspace: (name: string) => void;
+  onToggleChannelMode?: (id: string) => void;
 }
 
 export function Sidebar({
@@ -78,8 +79,10 @@ export function Sidebar({
   onSaveWorkspace,
   onLoadWorkspace,
   onDeleteWorkspace,
+  onToggleChannelMode,
 }: Props) {
   const [ingestMode, setIngestMode] = useState<"search" | "url">("search");
+  const [channelMode, setChannelMode] = useState<"separate" | "avg">("avg");
   const [url, setUrl] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -130,12 +133,12 @@ export function Sidebar({
     const urls = url.split(/[\n, ]+/).map((u) => u.trim()).filter(Boolean);
     let successCount = 0;
     for (const u of urls) {
-      const ok = await onImport(u);
+      const ok = await onImport(u, channelMode);
       if (ok) successCount++;
     }
     if (successCount > 0) setUrl("");
     setCooldown(2);
-  }, [url, loading, cooldown, onImport]);
+  }, [url, loading, cooldown, onImport, channelMode]);
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -312,7 +315,7 @@ export function Sidebar({
                         className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border-b border-[var(--border-subtle)]"
                         onMouseDown={(e) => {
                           e.preventDefault();
-                          onImport(result.url);
+                          onImport(result.url, channelMode);
                           setSearchQuery("");
                           setSearchResults([]);
                         }}
@@ -349,6 +352,37 @@ export function Sidebar({
               </button>
             </div>
           )}
+
+          {/* Channel Import Mode Selector */}
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--border-subtle)] text-[11px]">
+            <span className="text-[var(--text-muted)] font-medium">Channel Mode:</span>
+            <div className="flex bg-[var(--bg-surface)] p-0.5 rounded border border-[var(--border-subtle)]">
+              <button
+                type="button"
+                onClick={() => setChannelMode("avg")}
+                className={`px-2 py-0.5 text-[10px] font-semibold rounded ${
+                  channelMode === "avg"
+                    ? "bg-indigo-600 text-white"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                }`}
+                title="Average Left and Right channels into a single curve (Default)"
+              >
+                Average
+              </button>
+              <button
+                type="button"
+                onClick={() => setChannelMode("separate")}
+                className={`px-2 py-0.5 text-[10px] font-semibold rounded ${
+                  channelMode === "separate"
+                    ? "bg-indigo-600 text-white"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                }`}
+                title="Import Left and Right channels as individual curves"
+              >
+                L + R
+              </button>
+            </div>
+          </div>
         </section>
 
         {/* Traces Section */}
@@ -390,6 +424,7 @@ export function Sidebar({
                 onLabelChange={onLabelChange}
                 onNoteChange={onNoteChange}
                 onReorder={onReorderTraces}
+                onToggleChannelMode={onToggleChannelMode}
               />
             </div>
           )}

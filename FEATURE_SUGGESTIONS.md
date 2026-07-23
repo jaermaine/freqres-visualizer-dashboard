@@ -30,13 +30,13 @@ This document tracks the 10-feature power-user expansion for **FreqRes**.
 - **Status:** ✅ Completed
 - **Details:** Lightweight customization modal with live image preview, aspect ratio selection (`16:9`, `1:1`, `4:3`), theme style rendering (`Dark Mode` vs `Light Mode` export backgrounds), custom reviewer watermark fields, and reviewer attribution credits (e.g., `Measured by Precogvision`).
 
+### 4. Channel Imbalance & L/R Channel Matching View
+- **Status:** ✅ Completed
+- **Details:** Ability to load Left (`L`) and Right (`R`) channel measurement traces automatically for headphones and IEMs. Includes dedicated L/R trace badges, Channel Ingestion mode options (`L + R` vs `Average`), and an interactive Channel Imbalance Table showing max dB imbalance across the frequency spectrum.
+
 ---
 
 ## Remaining Feature Suggestions
-
-### 4. Channel Imbalance View
-- **Status:** ⏳ Pending
-- **Details:** Ability to load Left (`L`) and Right (`R`) channel measurement traces for a single IEM/headphone to visually evaluate channel matching, seal consistency, and driver variance.
 
 ### 5. Custom Normalization Options
 - **Status:** ⏳ Pending

@@ -253,3 +253,153 @@ function linearInterpolate(xs: number[], ys: number[], x: number): number {
   const t = (x - xs[lo]) / (xs[hi] - xs[lo]);
   return ys[lo] + t * (ys[hi] - ys[lo]);
 }
+
+export type ParsedChannelCurve = {
+  labelSuffix: string;
+  channel: "L" | "R" | "avg";
+  points: FRPoint[];
+  normalized: NormalizedCurve;
+};
+
+export type MultiChannelParseSuccess = {
+  ok: true;
+  curves: ParsedChannelCurve[];
+};
+
+export type MultiChannelParseResult = MultiChannelParseSuccess | ParserError;
+
+export function parseMeasurementTextMultiChannel(
+  raw: string,
+  options?: { channelMode?: "separate" | "avg" }
+): MultiChannelParseResult {
+  const baseResult = parseMeasurementText(raw);
+  if (!baseResult.ok) return baseResult;
+
+  const mode = options?.channelMode ?? "separate";
+
+  const text = raw
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/^\uFEFF/, "");
+
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !l.startsWith("*") && !l.startsWith("#") && !l.startsWith("//"));
+
+  const delim = detectDelimiter(lines);
+  let firstDataIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const cells = lines[i].split(delim).map(s => s.trim());
+    if (cells.length >= 2) {
+      const v0 = parseFloat(cells[0]);
+      const v1 = parseFloat(cells[1]);
+      if (!isNaN(v0) && !isNaN(v1)) {
+        firstDataIdx = i;
+        break;
+      }
+    }
+  }
+
+  if (firstDataIdx === -1) {
+    return { ok: true, curves: [{ labelSuffix: "", channel: "avg", points: baseResult.points, normalized: baseResult.normalized }] };
+  }
+
+  let colMap: ColMap = { freqIdx: 0, valIdx: 1 };
+  if (firstDataIdx > 0) {
+    const headerCells = lines[firstDataIdx - 1].split(delim).map(s => s.trim());
+    const detected = detectColumns(headerCells);
+    if (detected) colMap = detected;
+  }
+
+  // Check if header had stereo columns
+  if (colMap.valIdx < -1) {
+    const packed = -colMap.valIdx - 1;
+    if (packed >= 1000) {
+      const leftIdx = Math.floor(packed / 1000);
+      const rightIdx = packed % 1000;
+
+      const dataLines = lines.slice(firstDataIdx);
+      const pointsL: FRPoint[] = [];
+      const pointsR: FRPoint[] = [];
+
+      for (const line of dataLines) {
+        const cells = line.split(delim).map(s => s.trim());
+        if (cells.length <= Math.max(leftIdx, rightIdx)) continue;
+        const hz = parseFloat(cells[colMap.freqIdx]);
+        const l = parseFloat(cells[leftIdx]);
+        const r = parseFloat(cells[rightIdx]);
+        if (isFinite(hz) && hz > 0) {
+          if (isFinite(l)) pointsL.push({ hz, db: l });
+          if (isFinite(r)) pointsR.push({ hz, db: r });
+        }
+      }
+
+      if (pointsL.length >= MIN_POINTS && pointsR.length >= MIN_POINTS) {
+        pointsL.sort((a, b) => a.hz - b.hz);
+        pointsR.sort((a, b) => a.hz - b.hz);
+        const normL = normalizeCurve(pointsL);
+        const normR = normalizeCurve(pointsR);
+
+        if (mode === "avg") {
+          const grid = buildLogGrid();
+          const avgDb = grid.map((_, i) => (normL.db[i] + normR.db[i]) / 2);
+          return { ok: true, curves: [{ labelSuffix: "", channel: "avg", points: pointsL, normalized: { hz: grid, db: avgDb } }] };
+        }
+
+        return {
+          ok: true,
+          curves: [
+            { labelSuffix: " (L)", channel: "L", points: pointsL, normalized: normL },
+            { labelSuffix: " (R)", channel: "R", points: pointsR, normalized: normR },
+          ],
+        };
+      }
+    }
+  }
+
+  // Check for multi-sweep (Sweep 0 = L, Sweep 1 = R)
+  const dataLines = lines.slice(firstDataIdx);
+  const rawPoints: FRPoint[] = [];
+  for (const line of dataLines) {
+    const cells = line.split(delim).map((s) => s.trim());
+    if (cells.length < 2) continue;
+    const pt = parseRow(cells, colMap);
+    if (pt) rawPoints.push(pt);
+  }
+
+  const sweeps: FRPoint[][] = [];
+  let currentSweep: FRPoint[] = [];
+  let lastHz = -1;
+  for (const pt of rawPoints) {
+    if (pt.hz <= lastHz) {
+      if (currentSweep.length > 0) sweeps.push(currentSweep);
+      currentSweep = [];
+    }
+    currentSweep.push(pt);
+    lastHz = pt.hz;
+  }
+  if (currentSweep.length > 0) sweeps.push(currentSweep);
+
+  const validSweeps = sweeps.filter(s => s.length >= MIN_POINTS);
+
+  if (mode !== "avg" && validSweeps.length === 2) {
+    const sweepL = validSweeps[0].sort((a, b) => a.hz - b.hz);
+    const sweepR = validSweeps[1].sort((a, b) => a.hz - b.hz);
+    const normL = normalizeCurve(sweepL);
+    const normR = normalizeCurve(sweepR);
+
+    return {
+      ok: true,
+      curves: [
+        { labelSuffix: " (L)", channel: "L", points: sweepL, normalized: normL },
+        { labelSuffix: " (R)", channel: "R", points: sweepR, normalized: normR },
+      ],
+    };
+  }
+
+  return {
+    ok: true,
+    curves: [{ labelSuffix: "", channel: "avg", points: baseResult.points, normalized: baseResult.normalized }],
+  };
+}

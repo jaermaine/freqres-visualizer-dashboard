@@ -171,10 +171,19 @@ export function GuideContent() {
 
             <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
               <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider block mb-1">
-                A/B Difference Table
+                A/B Difference & Channel Imbalance
               </span>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                Automatically calculates decibel differences between two visible traces at 20, 100, 1k, 3k, 5k, and 10k Hz. Features target compensation integration and a Swap A/B toggle.
+                Calculates decibel deltas between traces at key frequencies. Comparing Left (L) and Right (R) channel curves automatically activates Channel Imbalance Mode and measures max dB variance across the spectrum.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+              <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider block mb-1">
+                Default Average & Per-Trace L/R Toggle
+              </span>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                Imports default to clean single Average curves. Each active trace features a 1-click "Avg to L/R" and "L/R to Avg" toggle to split into Left and Right channel traces or merge back on demand.
               </p>
             </div>
 

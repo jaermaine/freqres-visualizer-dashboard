@@ -86,8 +86,13 @@ export type ParseResult = ParserSuccess | ParserError;
 
 export type CurveData = {
   label: string;
+  channel?: "L" | "R" | "avg";
   points: FRPoint[];
   normalized: NormalizedCurve;
+  rawChannels?: {
+    left?: NormalizedCurve;
+    right?: NormalizedCurve;
+  };
 };
 
 export type MetadataOnlyResult = {
@@ -119,11 +124,16 @@ export type ImportResult = MetadataOnlyResult | FRDataResult | ImportError;
 export type Trace = {
   id: string;
   label: string;
+  channel?: "L" | "R" | "avg";
   color: string;
   normalized: NormalizedCurve;
   source: ParsedSourceUrl;
   visible: boolean;
   notes?: string;
+  rawChannels?: {
+    left?: NormalizedCurve;
+    right?: NormalizedCurve;
+  };
 };
 
 // ─── Parameter Bands ───────────────────────────────────────────────────────

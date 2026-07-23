@@ -99,16 +99,39 @@ export function DifferenceTable({ traces, theme = 'dark', isCompensated, selecte
     };
   });
 
+  const isChannelMatching = isValid && !!traceA && !!traceB && (
+    (traceA.channel === "L" && traceB.channel === "R") ||
+    (traceA.channel === "R" && traceB.channel === "L") ||
+    (traceA.label.includes("(L)") && traceB.label.includes("(R)")) ||
+    (traceA.label.includes("(R)") && traceB.label.includes("(L)"))
+  );
+
+  const maxImbalance = isChannelMatching
+    ? Math.max(...compareData.map(d => (d.delta !== null ? Math.abs(d.delta) : 0)))
+    : 0;
+
   return (
     <div className={`mt-4 rounded-lg overflow-hidden border transition-colors relative ${
       theme === 'light' 
         ? 'border-slate-200 bg-white' 
         : 'border-slate-800 bg-[#0d0f14]'
     }`}>
-      <div className={`px-4 py-2 border-b text-sm font-semibold flex items-center justify-between ${
+      <div className={`px-4 py-2 border-b text-sm font-semibold flex items-center justify-between flex-wrap gap-2 ${
         theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-[#151923] border-slate-800 text-slate-200'
       }`}>
-        <span>A/B Comparison Table</span>
+        <div className="flex items-center gap-2">
+          <span>{isChannelMatching ? "Channel Imbalance & Matching Table (L vs R)" : "A/B Comparison Table"}</span>
+          {isChannelMatching && (
+            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+              Channel Matching
+            </span>
+          )}
+          {isChannelMatching && maxImbalance > 0 && (
+            <span className="px-2 py-0.5 text-[10px] font-medium rounded bg-slate-800 text-slate-300">
+              Max Imbalance: {maxImbalance.toFixed(1)} dB
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-4">
           {isValid && (
             <button 

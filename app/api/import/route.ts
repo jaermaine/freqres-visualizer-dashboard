@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseSourceUrl, sourceLabel } from "@/lib/parseSourceUrl";
-import { parseMeasurementText } from "@/lib/parseMeasurementFile";
+import { parseMeasurementText, parseMeasurementTextMultiChannel } from "@/lib/parseMeasurementFile";
 import { resolveSquigUrls } from "@/lib/resolveSquigUrl";
 import { verifyUrlSafety } from "@/lib/security";
 import type { ImportResult, CurveData } from "@/types/audio";
@@ -42,6 +42,7 @@ async function readStreamSafely(resp: Response): Promise<string> {
   
   return new TextDecoder().decode(combined);
 }
+
 export async function POST(req: NextRequest): Promise<NextResponse<ImportResult>> {
   // 1. Rate Limiting Check
   const ip = req.ip || req.headers.get("x-forwarded-for") || "unknown";
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImportResult>
 
   const body = await req.json();
   const url = typeof body.url === "string" ? body.url : "";
+  const channelMode = body.channelMode === "separate" ? "separate" : "avg";
 
   // 2. Input Validation
   if (url.length > 1000) {
@@ -76,7 +78,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImportResult>
 
   // ── Auto-Resolution (Squiglink & Hangout) ─────────────────────────────────
   if (parsed.kind === "squiglink-share-url" || parsed.kind === "hangout-graph-url") {
-    // Attempt to auto-resolve model tokens → raw .txt URLs via phone_book.json
     const baseUrl = parsed.baseUrl;
     if (parsed.models.length > 0) {
       try {
@@ -89,34 +90,90 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImportResult>
           const curves: CurveData[] = [];
           
           for (const entry of resolved) {
-            // Try primary (channel-suffixed, e.g. " L.txt"), then fallback (bare .txt)
-            const urlsToTry = [entry.rawUrl, ...(entry.fallbackUrl ? [entry.fallbackUrl] : [])];
-            for (const tryUrl of urlsToTry) {
-              try {
-                const resp = await fetch(tryUrl, {
-                  headers: { Accept: "text/plain,text/csv,*/*" },
-                  signal: AbortSignal.timeout(15000),
-                });
+            let leftCurve: CurveData | null = null;
+            let rightCurve: CurveData | null = null;
 
-                if (!resp.ok) continue;
-
-                const contentType = resp.headers.get("content-type") ?? "";
-                if (contentType.includes("text/html")) continue;
-
-                const text = await readStreamSafely(resp);
-                const parseResult = parseMeasurementText(text);
-
-                if (parseResult.ok) {
-                  curves.push({
-                    label: entry.label,
-                    points: parseResult.points,
-                    normalized: parseResult.normalized,
-                  });
-                  break; // Move to the next resolved model once this one succeeds
+            // Fetch Left Channel
+            try {
+              const respL = await fetch(entry.leftUrl, {
+                headers: { Accept: "text/plain,text/csv,*/*" },
+                signal: AbortSignal.timeout(12000),
+              });
+              if (respL.ok && !(respL.headers.get("content-type") ?? "").includes("text/html")) {
+                const textL = await readStreamSafely(respL);
+                const pL = parseMeasurementText(textL);
+                if (pL.ok) {
+                  leftCurve = {
+                    label: `${entry.label} (L)`,
+                    channel: "L",
+                    points: pL.points,
+                    normalized: pL.normalized,
+                  };
                 }
-              } catch {
-                continue;
               }
+            } catch {}
+
+            // Fetch Right Channel
+            try {
+              const respR = await fetch(entry.rightUrl, {
+                headers: { Accept: "text/plain,text/csv,*/*" },
+                signal: AbortSignal.timeout(12000),
+              });
+              if (respR.ok && !(respR.headers.get("content-type") ?? "").includes("text/html")) {
+                const textR = await readStreamSafely(respR);
+                const pR = parseMeasurementText(textR);
+                if (pR.ok) {
+                  rightCurve = {
+                    label: `${entry.label} (R)`,
+                    channel: "R",
+                    points: pR.points,
+                    normalized: pR.normalized,
+                  };
+                }
+              }
+            } catch {}
+
+            // If both L and R succeeded
+            if (leftCurve && rightCurve) {
+              const rawChannels = { left: leftCurve.normalized, right: rightCurve.normalized };
+              if (channelMode === "separate") {
+                curves.push({ ...leftCurve, rawChannels });
+                curves.push({ ...rightCurve, rawChannels });
+              } else {
+                const hz = leftCurve.normalized.hz;
+                const db = hz.map((_, i) => (leftCurve!.normalized.db[i] + rightCurve!.normalized.db[i]) / 2);
+                curves.push({
+                  label: entry.label,
+                  channel: "avg",
+                  points: leftCurve.points,
+                  normalized: { hz, db },
+                  rawChannels,
+                });
+              }
+            } else if (leftCurve) {
+              curves.push({ ...leftCurve, label: entry.label, channel: "avg" });
+            } else if (rightCurve) {
+              curves.push({ ...rightCurve, label: entry.label, channel: "avg" });
+            } else {
+              // Fallback to bare .txt file
+              try {
+                const respFallback = await fetch(entry.fallbackUrl, {
+                  headers: { Accept: "text/plain,text/csv,*/*" },
+                  signal: AbortSignal.timeout(12000),
+                });
+                if (respFallback.ok && !(respFallback.headers.get("content-type") ?? "").includes("text/html")) {
+                  const textFb = await readStreamSafely(respFallback);
+                  const pFb = parseMeasurementText(textFb);
+                  if (pFb.ok) {
+                    curves.push({
+                      label: entry.label,
+                      channel: "avg",
+                      points: pFb.points,
+                      normalized: pFb.normalized,
+                    });
+                  }
+                }
+              } catch {}
             }
           }
           
@@ -131,7 +188,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImportResult>
           }
         }
       } catch (resolveErr) {
-        // phone_book fetch failed (host down, CORS, etc.) — fall through
         void resolveErr;
       }
     }
@@ -216,7 +272,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImportResult>
     return NextResponse.json(result, { status: 422 });
   }
 
-  const parsed2 = parseMeasurementText(text);
+  const parsed2 = parseMeasurementTextMultiChannel(text, { channelMode });
   if (!parsed2.ok) {
     const result: ImportResult = {
       ok: false,
@@ -226,17 +282,17 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImportResult>
     return NextResponse.json(result, { status: 422 });
   }
 
+  const baseLabel = sourceLabel(parsed);
   const result: ImportResult = {
     ok: true,
     mode: "fr-data",
     source: parsed,
-    curves: [
-      {
-        label: sourceLabel(parsed),
-        points: parsed2.points,
-        normalized: parsed2.normalized,
-      },
-    ],
+    curves: parsed2.curves.map((c) => ({
+      label: `${baseLabel}${c.labelSuffix}`,
+      channel: c.channel,
+      points: c.points,
+      normalized: c.normalized,
+    })),
   };
   return NextResponse.json(result);
 }

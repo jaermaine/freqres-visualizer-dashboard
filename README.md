@@ -20,6 +20,8 @@ Instead of navigating complex proprietary databases or downloading text files ma
   - **Trace Notes:** Attach specific, persistent text notes (e.g. "Foam mod applied") to any imported curve.
   - **Zoom to Region & Scroll Zoom:** Instantly crop frequency ranges using quick preset buttons (`Full`, `Bass`, `Mids`, `Treble`) or use smooth mouse wheel scroll zoom on desktop.
   - **A/B Difference Table:** When exactly two traces are visible, a sleek table automatically appears below the graph displaying precise, dynamically calculated delta values across key frequencies (20, 100, 1k, 3k, 5k, 10k Hz), complete with target compensation support and swap functionality.
+- **L/R Channel Matching & Channel Imbalance:** Auto-fetches Left (`L`) and Right (`R`) channel measurement curves from Squig.link databases. Comparing `(L)` vs `(R)` curves automatically activates Channel Imbalance Mode in the A/B comparison table, displaying max dB variance across the frequency spectrum.
+- **Default Average & Per-Trace Channel Toggling:** Imports default to clean `Average` mono curves. Each trace includes a 1-click `Avg → L/R` and `L/R → Avg` toggle button to split or combine channels individually post-import.
 - **Progressive Web App (PWA):** Install FreqRes as a standalone app on your desktop or mobile device. Offline caching is built-in for lightning-fast loads.
 - **Frictionless Onboarding:** First-time users are greeted with a quick 3-step feature highlight modal that automatically remembers dismissal state via local storage.
 - **Mobile Responsive & Accessible:** Features a premium UI with full touch gesture support (pinch-to-zoom), smooth CSS animations, light/dark mode toggles, and screen-reader accessibility.

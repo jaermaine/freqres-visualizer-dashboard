@@ -9,9 +9,10 @@ interface Props {
   onColorChange: (id: string, color: string) => void;
   onLabelChange: (id: string, label: string) => void;
   onNoteChange: (id: string, note: string) => void;
+  onToggleChannelMode?: (id: string) => void;
 }
 
-export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelChange, onNoteChange }: Props) {
+export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelChange, onNoteChange, onToggleChannelMode }: Props) {
   const [showNotes, setShowNotes] = useState(!!trace.notes);
   const [localColor, setLocalColor] = useState(trace.color);
   const sourceLabel = getTraceSourceLabel(trace);
@@ -28,6 +29,8 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
       return () => clearTimeout(timer);
     }
   }, [localColor, trace.color, trace.id, onColorChange]);
+
+  const isToggleable = !!trace.rawChannels || trace.source?.kind === "squiglink-share-url" || trace.source?.kind === "hangout-graph-url";
 
   return (
     <div className="flex flex-col gap-1 p-1.5 rounded bg-[var(--bg-raised)] border border-[var(--border-subtle)] group">
@@ -58,6 +61,16 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
         title="Change color"
         aria-label={`Change color for ${trace.label}`}
       />
+      {trace.channel === "L" && (
+        <span className="px-1 py-0.2 text-[9px] font-bold rounded bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shrink-0">
+          L
+        </span>
+      )}
+      {trace.channel === "R" && (
+        <span className="px-1 py-0.2 text-[9px] font-bold rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0">
+          R
+        </span>
+      )}
       <div className="flex-1 min-w-0 flex flex-col">
         <input
           type="text"
@@ -73,6 +86,15 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
           </span>
         )}
       </div>
+        {isToggleable && (
+          <button
+            onClick={() => onToggleChannelMode?.(trace.id)}
+            className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30 shrink-0 transition-colors"
+            title={trace.channel === "L" || trace.channel === "R" ? "Combine L & R into Average trace" : "Split into Left & Right channel traces"}
+          >
+            {trace.channel === "L" || trace.channel === "R" ? "L/R → Avg" : "Avg → L/R"}
+          </button>
+        )}
         <button
           onClick={() => setShowNotes(!showNotes)}
           className="text-[var(--text-muted)] hover:text-[var(--text-primary)] flex-shrink-0 text-sm leading-none"
@@ -114,9 +136,10 @@ interface ListProps {
   onLabelChange: (id: string, label: string) => void;
   onNoteChange: (id: string, note: string) => void;
   onReorder: (dragIndex: number, hoverIndex: number) => void;
+  onToggleChannelMode?: (id: string) => void;
 }
 
-export function TraceList({ traces, onToggle, onRemove, onColorChange, onLabelChange, onNoteChange, onReorder }: ListProps) {
+export function TraceList({ traces, onToggle, onRemove, onColorChange, onLabelChange, onNoteChange, onReorder, onToggleChannelMode }: ListProps) {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
@@ -184,6 +207,7 @@ export function TraceList({ traces, onToggle, onRemove, onColorChange, onLabelCh
               onColorChange={onColorChange}
               onLabelChange={onLabelChange}
               onNoteChange={onNoteChange}
+              onToggleChannelMode={onToggleChannelMode}
             />
           </div>
         );
