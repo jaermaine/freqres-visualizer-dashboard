@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const revalidate = 86400; // Cache for 24 hours
 
 const DATABASES = [
+  { id: 'joyce', name: "Joyce's Review", url: 'https://squig.link/lab/joycesreview/data/phone_book.json', base: 'https://squig.link/lab/joycesreview/' },
   { id: 'jaytiss', name: 'Jaytiss', url: 'https://jaytiss.squig.link/data/phone_book.json', base: 'https://jaytiss.squig.link/' },
   { id: 'super', name: 'Super*Review', url: 'https://squig.link/data/phone_book.json', base: 'https://squig.link/' },
   { id: 'precog', name: 'Precogvision', url: 'https://precog.squig.link/data/phone_book.json', base: 'https://precog.squig.link/' }

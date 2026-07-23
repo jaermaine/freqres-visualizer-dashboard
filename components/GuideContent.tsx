@@ -23,6 +23,11 @@ const URL_PATTERNS = {
       example: "https://squig.link/superreview/?share=Truthear_Gate",
       note: "Path-based reviewer databases on apex squig.link (e.g. Super*Review, Jaytiss).",
     },
+    {
+      title: "Joyce's Review & Nested Lab Databases",
+      example: "https://squig.link/lab/joycesreview/?share=CVJ_NOZOMI",
+      note: "Nested lab databases on squig.link (e.g. Joyce's Review) with automatic reviewer attribution.",
+    },
   ],
   raw: [
     {

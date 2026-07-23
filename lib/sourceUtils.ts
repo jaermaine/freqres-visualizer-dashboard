@@ -18,6 +18,8 @@ const REVIEWER_MAP: Record<string, string> = {
   "venerable": "Venerable",
   "mmagical": "MMagical",
   "joycesreview": "Joyce's Review",
+  "joycereviews": "Joyce's Review",
+  "joycereview": "Joyce's Review",
   "joyce": "Joyce's Review",
   "csi": "CSI-Zone",
 };

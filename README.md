@@ -12,7 +12,7 @@ Instead of navigating complex proprietary databases or downloading text files ma
 - **Interactive Parameter Bands:** Semantic frequency zones (e.g., Sub Bass, Mid Bass, "Air") render as beautiful, semi-transparent overlays. Hover directly over the graph to preview these zones, and click anywhere to lock them in place.
 - **Smart Normalization:** Raw frequency data is normalized around the 1kHz range, ensuring multiple IEM traces align intuitively on the exact same baseline for accurate comparison.
 - **Advanced UX & Power Tools:** 
-  - **Autocomplete Search:** Instantly search through major databases (Jaytiss, Super*Review, Precog) and auto-import with one click.
+  - **Autocomplete Search:** Instantly search through major databases (Jaytiss, Super*Review, Precogvision, Joyce's Review) and auto-import with one click.
   - **Bulk Import:** Paste multiple Squiglink URLs at once to sequentially fetch traces.
   - **Undo/Redo History:** Seamlessly undo (`Ctrl+Z`) and redo (`Ctrl+Y`) visibility toggles, trace deletions, and color changes.
   - **Workspace Management:** Save your current trace configurations (colors, targets, visibility) locally under custom names, and easily switch between different comparisons.
