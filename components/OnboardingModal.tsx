@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 interface Props {
   onClose: () => void;
@@ -24,48 +25,64 @@ export function OnboardingModal({ onClose }: Props) {
         aria-labelledby="onboarding-title"
       >
         <div className="p-6">
-          <div className="flex items-center justify-center w-12 h-12 bg-indigo-500/20 text-indigo-400 rounded-full mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="flex items-center justify-center w-10 h-10 bg-indigo-500/20 text-indigo-400 rounded-lg mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
           </div>
-          <h2 id="onboarding-title" className="text-xl font-bold mb-2 text-[var(--text-primary)]">
+          <h2 id="onboarding-title" className="text-xl font-bold mb-1 text-[var(--text-primary)]">
             Welcome to FreqRes
           </h2>
-          <p className="text-sm text-[var(--text-secondary)] mb-6">
-            Get started quickly with these core features:
+          <p className="text-xs text-[var(--text-secondary)] mb-5">
+            Plot, compare, and analyze frequency response measurements for headphones and IEMs.
           </p>
           
-          <ul className="space-y-4 mb-8">
+          <ul className="space-y-3.5 mb-6">
             <li className="flex gap-3">
-              <span className="text-indigo-400 font-bold">1</span>
+              <span className="text-indigo-400 font-bold text-xs bg-indigo-500/10 border border-indigo-500/20 w-5 h-5 rounded flex items-center justify-center shrink-0">1</span>
               <div>
-                <strong className="block text-sm text-[var(--text-primary)]">Import Data</strong>
-                <span className="text-xs text-[var(--text-muted)]">Paste Squig.link URLs or upload raw measurement text files in the sidebar.</span>
+                <strong className="block text-xs font-semibold text-[var(--text-primary)]">Data Ingestion</strong>
+                <span className="text-[11px] text-[var(--text-muted)] leading-tight block">Search Squig.link databases, paste share URLs, or upload raw measurement text files.</span>
               </div>
             </li>
             <li className="flex gap-3">
-              <span className="text-indigo-400 font-bold">2</span>
+              <span className="text-indigo-400 font-bold text-xs bg-indigo-500/10 border border-indigo-500/20 w-5 h-5 rounded flex items-center justify-center shrink-0">2</span>
               <div>
-                <strong className="block text-sm text-[var(--text-primary)]">Compare & Align</strong>
-                <span className="text-xs text-[var(--text-muted)]">Overlay industry-standard tuning targets (e.g., Harman) and automatically align curves.</span>
+                <strong className="block text-xs font-semibold text-[var(--text-primary)]">L/R Channel & Imbalance</strong>
+                <span className="text-[11px] text-[var(--text-muted)] leading-tight block">Imports default to clean Average curves. Click "Avg to L/R" on any trace card to evaluate Left/Right channel matching.</span>
               </div>
             </li>
             <li className="flex gap-3">
-              <span className="text-indigo-400 font-bold">3</span>
+              <span className="text-indigo-400 font-bold text-xs bg-indigo-500/10 border border-indigo-500/20 w-5 h-5 rounded flex items-center justify-center shrink-0">3</span>
               <div>
-                <strong className="block text-sm text-[var(--text-primary)]">Interactive Analysis</strong>
-                <span className="text-xs text-[var(--text-muted)]">Toggle Parameter Bands (Sub Bass, Treble, etc.) or click directly on the graph to lock visual frequency guides.</span>
+                <strong className="block text-xs font-semibold text-[var(--text-primary)]">Targets & A/B Difference</strong>
+                <span className="text-[11px] text-[var(--text-muted)] leading-tight block">Overlay Harman, IEF Neutral, or 5128 targets. Compare any 2 visible traces in the dynamic decibel delta table.</span>
+              </div>
+            </li>
+            <li className="flex gap-3">
+              <span className="text-indigo-400 font-bold text-xs bg-indigo-500/10 border border-indigo-500/20 w-5 h-5 rounded flex items-center justify-center shrink-0">4</span>
+              <div>
+                <strong className="block text-xs font-semibold text-[var(--text-primary)]">Export & Share</strong>
+                <span className="text-[11px] text-[var(--text-muted)] leading-tight block">Generate high-resolution PNG graph snapshots with reviewer credits or share workspace links in 1 click.</span>
               </div>
             </li>
           </ul>
 
-          <button 
-            onClick={onClose}
-            className="w-full btn-primary py-2.5 text-sm"
-          >
-            Got it, let's go!
-          </button>
+          <div className="flex gap-2">
+            <Link
+              href="/tutorial"
+              onClick={onClose}
+              className="flex-1 text-center py-2 text-xs font-semibold rounded-md border border-[var(--border-subtle)] bg-[var(--bg-base)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
+            >
+              Open Full Guide
+            </Link>
+            <button 
+              onClick={onClose}
+              className="flex-1 btn-primary py-2 text-xs font-semibold"
+            >
+              Start Exploring
+            </button>
+          </div>
         </div>
       </div>
     </div>

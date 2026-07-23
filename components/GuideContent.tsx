@@ -260,6 +260,10 @@ export function GuideContent() {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-[var(--text-secondary)]">
             <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-base)] border border-[var(--border-subtle)]">
+              <span>Per-Trace Channel Toggle</span>
+              <kbd className="px-2 py-0.5 bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 rounded text-[10px]">Avg ⇄ L/R</kbd>
+            </div>
+            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-base)] border border-[var(--border-subtle)]">
               <span>Toggle Trace Visibility</span>
               <kbd className="px-2 py-0.5 bg-slate-800 text-slate-200 border border-slate-700 rounded text-[10px]">1 - 9</kbd>
             </div>
@@ -274,6 +278,10 @@ export function GuideContent() {
             <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-base)] border border-[var(--border-subtle)]">
               <span>Share Workspace Link</span>
               <kbd className="px-2 py-0.5 bg-slate-800 text-slate-200 border border-slate-700 rounded text-[10px]">Ctrl + S</kbd>
+            </div>
+            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-base)] border border-[var(--border-subtle)]">
+              <span>Attach Notes to Trace</span>
+              <kbd className="px-2 py-0.5 bg-slate-800 text-slate-200 border border-slate-700 rounded text-[10px]">✎ Icon</kbd>
             </div>
           </div>
         </section>
