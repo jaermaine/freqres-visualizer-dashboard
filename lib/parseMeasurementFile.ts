@@ -14,6 +14,17 @@ export function buildLogGrid(): number[] {
   return out;
 }
 
+export type MultiChannelParsedCurve = {
+  labelSuffix: string;
+  channel: "L" | "R" | "avg";
+  points: FRPoint[];
+  normalized: NormalizedCurve;
+};
+
+export type MultiChannelParseResult =
+  | { ok: true; curves: MultiChannelParsedCurve[] }
+  | { ok: false; code: ParserErrorCode; message: string };
+
 function makeError(code: ParserErrorCode, message: string): ParseResult {
   return { ok: false, code, message };
 }
@@ -261,12 +272,6 @@ export type ParsedChannelCurve = {
   normalized: NormalizedCurve;
 };
 
-export type MultiChannelParseSuccess = {
-  ok: true;
-  curves: ParsedChannelCurve[];
-};
-
-export type MultiChannelParseResult = MultiChannelParseSuccess | ParserError;
 
 export function parseMeasurementTextMultiChannel(
   raw: string,

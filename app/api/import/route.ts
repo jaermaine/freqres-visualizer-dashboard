@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseSourceUrl, sourceLabel } from "@/lib/parseSourceUrl";
-import { parseMeasurementText, parseMeasurementTextMultiChannel } from "@/lib/parseMeasurementFile";
+import { parseMeasurementText, parseMeasurementTextMultiChannel, type MultiChannelParsedCurve } from "@/lib/parseMeasurementFile";
 import { resolveSquigUrls } from "@/lib/resolveSquigUrl";
 import { verifyUrlSafety } from "@/lib/security";
 import type { ImportResult, CurveData } from "@/types/audio";
@@ -287,7 +287,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImportResult>
     ok: true,
     mode: "fr-data",
     source: parsed,
-    curves: parsed2.curves.map((c) => ({
+    curves: parsed2.curves.map((c: MultiChannelParsedCurve) => ({
       label: `${baseLabel}${c.labelSuffix}`,
       channel: c.channel,
       points: c.points,
