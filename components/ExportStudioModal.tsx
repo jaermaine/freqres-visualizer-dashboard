@@ -86,7 +86,13 @@ export function ExportStudioModal({
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)] shrink-0">
           <div className="flex items-center gap-2">
-            <span className="text-xl">🎨</span>
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                <polyline points="21 15 16 10 5 21"></polyline>
+              </svg>
+            </div>
             <div>
               <h2 className="text-base font-semibold">PNG Export Studio</h2>
               <p className="text-xs text-[var(--text-muted)]">

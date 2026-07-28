@@ -209,7 +209,7 @@ export function Sidebar({
               <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
             </svg>
             {isCopied && (
-              <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-2 py-0.5 rounded text-[10px] whitespace-nowrap shadow-lg z-20">
+              <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-2 py-0.5 rounded text-[10px] whitespace-nowrap shadow-lg z-20 font-sans">
                 Copied!
               </span>
             )}
@@ -253,126 +253,40 @@ export function Sidebar({
             </svg>
           </Link>
 
-          {/* Mobile Close Button */}
           <button
-            className="md:hidden text-[var(--text-muted)] hover:text-white ml-1"
+            className="md:hidden text-[var(--text-muted)] hover:text-white ml-1 p-1"
             onClick={onClose}
             aria-label="Close menu"
           >
-            ✕
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
           </button>
         </div>
       </div>
 
       {/* Main Scrollable Control Panel */}
       <div className="flex flex-col gap-3.5 p-3 flex-1 overflow-y-auto custom-scrollbar">
-        {/* Unified Ingestion & Search Panel */}
-        <section className="p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)]">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-[var(--text-primary)]">Data Ingestion</span>
+        {/* Unified Smart Ingestion & Search Panel */}
+        <section className="p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-[var(--text-primary)]">Import Measurements</span>
             <div className="flex bg-[var(--bg-surface)] p-0.5 rounded border border-[var(--border-subtle)]">
               <button
-                onClick={() => setIngestMode("search")}
-                className={`px-2 py-0.5 text-[10px] font-semibold rounded ${
-                  ingestMode === "search"
-                    ? "bg-indigo-600 text-white"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                Search
-              </button>
-              <button
-                onClick={() => setIngestMode("url")}
-                className={`px-2 py-0.5 text-[10px] font-semibold rounded ${
-                  ingestMode === "url"
-                    ? "bg-indigo-600 text-white"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                Paste URL
-              </button>
-            </div>
-          </div>
-
-          {ingestMode === "search" ? (
-            <div className="relative">
-              <input
-                type="text"
-                className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-indigo-500"
-                placeholder="Search Squiglink (e.g. Aria, Gate)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              {isSearching && (
-                <p className="text-[10px] text-[var(--text-muted)] mt-1">Searching database...</p>
-              )}
-              {searchResults.length > 0 && (
-                <ul className="absolute z-20 top-[38px] left-0 w-full bg-[var(--bg-surface)] border border-[var(--border)] rounded shadow-xl max-h-48 overflow-y-auto">
-                  {searchResults.map((result) => (
-                    <li key={result.id}>
-                      <button
-                        type="button"
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border-b border-[var(--border-subtle)]"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          onImport(result.url, channelMode);
-                          setSearchQuery("");
-                          setSearchResults([]);
-                        }}
-                      >
-                        <span className="font-semibold block truncate">{result.name}</span>
-                        <span className="text-[10px] text-[var(--text-muted)] block truncate">
-                          {result.source}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ) : (
-            <div>
-              <textarea
-                id="url-input"
-                className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-primary)] outline-none focus:border-indigo-500 min-h-[55px] resize-y"
-                placeholder="Paste Squig.link or raw .txt URL(s)..."
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                onKeyDown={handleKey}
-                spellCheck={false}
-                disabled={loading || cooldown > 0}
-              />
-              <button
-                id="import-btn"
-                className="btn-primary w-full mt-1.5 py-1.5 text-xs font-semibold"
-                onClick={handleImport}
-                disabled={loading || !url.trim() || cooldown > 0}
-              >
-                {loading ? "Importing..." : cooldown > 0 ? `Wait ${cooldown}s...` : "Import Curve(s)"}
-              </button>
-            </div>
-          )}
-
-          {/* Channel Import Mode Selector */}
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--border-subtle)] text-[11px]">
-            <span className="text-[var(--text-muted)] font-medium">Channel Mode:</span>
-            <div className="flex bg-[var(--bg-surface)] p-0.5 rounded border border-[var(--border-subtle)]">
-              <button
-                type="button"
                 onClick={() => setChannelMode("avg")}
-                className={`px-2 py-0.5 text-[10px] font-semibold rounded ${
+                className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors ${
                   channelMode === "avg"
                     ? "bg-indigo-600 text-white"
                     : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 }`}
-                title="Average Left and Right channels into a single curve (Default)"
+                title="Import Left & Right channels merged into a single Average trace"
               >
-                Average
+                Avg
               </button>
               <button
-                type="button"
                 onClick={() => setChannelMode("separate")}
-                className={`px-2 py-0.5 text-[10px] font-semibold rounded ${
+                className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors ${
                   channelMode === "separate"
                     ? "bg-indigo-600 text-white"
                     : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
@@ -383,6 +297,68 @@ export function Sidebar({
               </button>
             </div>
           </div>
+
+          <div className="relative">
+            <input
+              type="text"
+              className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-indigo-500 font-mono transition-all"
+              placeholder="Search model or paste graph URL..."
+              value={searchQuery}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSearchQuery(val);
+                setUrl(val);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (searchQuery.includes("http://") || searchQuery.includes("https://") || searchQuery.includes(".txt") || searchQuery.includes("share=")) {
+                    handleImport();
+                  }
+                }
+              }}
+              disabled={loading || cooldown > 0}
+            />
+
+            {isSearching && (
+              <p className="text-[10px] text-[var(--text-muted)] mt-1">Searching Squiglink database...</p>
+            )}
+
+            {searchResults.length > 0 && (
+              <ul className="absolute z-20 top-[42px] left-0 w-full bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                {searchResults.map((result) => (
+                  <li key={result.id}>
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border-b border-[var(--border-subtle)] flex flex-col gap-0.5"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        onImport(result.url, channelMode);
+                        setSearchQuery("");
+                        setUrl("");
+                        setSearchResults([]);
+                      }}
+                    >
+                      <span className="font-semibold block truncate">{result.name}</span>
+                      <span className="text-[10px] text-[var(--text-muted)] block truncate font-mono">
+                        {result.source}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {(searchQuery.includes("http://") || searchQuery.includes("https://") || searchQuery.includes(".txt") || searchQuery.includes("share=")) && (
+            <button
+              className="btn-primary w-full py-1.5 text-xs font-semibold"
+              onClick={handleImport}
+              disabled={loading || !url.trim() || cooldown > 0}
+            >
+              {loading ? "Importing..." : "Import URL"}
+            </button>
+          )}
         </section>
 
         {/* Traces Section */}
@@ -408,8 +384,10 @@ export function Sidebar({
                   Clear All
                 </button>
               )}
-              <span className="text-xs text-[var(--text-muted)]">
-                {openSections.traces ? "▲" : "▼"}
+              <span className={`transition-transform duration-200 ${openSections.traces ? "rotate-180" : ""}`} style={{ color: "var(--text-muted)" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
               </span>
             </div>
           </div>
@@ -430,54 +408,6 @@ export function Sidebar({
           )}
         </section>
 
-        {/* Tuning Targets Section */}
-        <section className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
-          <div
-            onClick={() => toggleSection("targets")}
-            className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none"
-          >
-            <span className="text-xs font-bold text-[var(--text-primary)]">Tuning Targets</span>
-            <span className="text-xs text-[var(--text-muted)]">
-              {openSections.targets ? "▲" : "▼"}
-            </span>
-          </div>
-
-          {openSections.targets && (
-            <div className="p-3 border-t border-[var(--border-subtle)] flex flex-col gap-2">
-              <select
-                aria-label="Tuning Target"
-                value={selectedTarget}
-                onChange={(e) => onSelectTarget(e.target.value)}
-                className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded text-xs px-2.5 py-1.5 text-[var(--text-primary)] outline-none focus:border-indigo-500"
-              >
-                <option value="none">None (Raw SPL)</option>
-                {TUNING_TARGETS.map((target) => (
-                  <option key={target.id} value={target.id}>
-                    {target.label}
-                  </option>
-                ))}
-              </select>
-
-              <label
-                className={`flex items-center gap-2 cursor-pointer text-xs transition-opacity select-none ${
-                  selectedTarget === "none" ? "opacity-40 pointer-events-none" : ""
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={isCompensated}
-                  onChange={onToggleCompensated}
-                  disabled={selectedTarget === "none"}
-                  className="accent-indigo-500 w-3.5 h-3.5"
-                />
-                <span className="text-[var(--text-secondary)] font-medium">
-                  Compensate to Target (+/- dB Delta)
-                </span>
-              </label>
-            </div>
-          )}
-        </section>
-
         {/* Parameter Bands Section */}
         <section className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
           <div
@@ -485,32 +415,25 @@ export function Sidebar({
             className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none"
           >
             <span className="text-xs font-bold text-[var(--text-primary)]">Parameter Bands</span>
-            <span className="text-xs text-[var(--text-muted)]">
-              {openSections.bands ? "▲" : "▼"}
+            <span className={`transition-transform duration-200 ${openSections.bands ? "rotate-180" : ""}`} style={{ color: "var(--text-muted)" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
             </span>
           </div>
 
           {openSections.bands && (
             <div className="p-3 border-t border-[var(--border-subtle)] flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-1.5 cursor-pointer text-xs select-none">
-                  <input
-                    type="checkbox"
-                    checked={isInteractiveGraph}
-                    onChange={onToggleInteractiveGraph}
-                    className="accent-indigo-500 w-3.5 h-3.5"
-                  />
-                  <span className="text-[var(--text-secondary)] font-medium">Graph Hover Selection</span>
-                </label>
-                {enabledBands.size > 0 && (
+              {enabledBands.size > 0 && (
+                <div className="flex items-center justify-end">
                   <button
                     onClick={onClearAllBands}
                     className="text-[10px] font-semibold text-indigo-400 hover:text-indigo-300"
                   >
-                    Clear All
+                    Clear All Bands
                   </button>
-                )}
-              </div>
+                </div>
+              )}
 
               <BandToggleGroup
                 enabled={enabledBands}
@@ -532,8 +455,10 @@ export function Sidebar({
             <span className="text-xs font-bold text-[var(--text-primary)]">
               Saved Workspaces ({Object.keys(savedWorkspaces).length})
             </span>
-            <span className="text-xs text-[var(--text-muted)]">
-              {openSections.workspaces ? "▲" : "▼"}
+            <span className={`transition-transform duration-200 ${openSections.workspaces ? "rotate-180" : ""}`} style={{ color: "var(--text-muted)" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
             </span>
           </div>
 
@@ -580,7 +505,10 @@ export function Sidebar({
                         onClick={() => onDeleteWorkspace(name)}
                         aria-label={`Delete workspace ${name}`}
                       >
-                        ✕
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
                       </button>
                     </div>
                   ))

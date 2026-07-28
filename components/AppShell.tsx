@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useId, useEffect, useRef } from "react";
 import { Sidebar } from "./Sidebar";
+import { Header } from "./Header";
 import { FRChart } from "./FRChart";
 import { DifferenceTable } from "./DifferenceTable";
 import { ExportStudioModal, type ExportOptions } from "./ExportStudioModal";
@@ -807,26 +808,16 @@ export function AppShell() {
         />
       </ErrorBoundary>
       <main className="flex-1 flex flex-col relative h-full bg-[var(--bg-base)] overflow-hidden">
-        {/* Mobile Header */}
-        <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-          <div className="flex items-center gap-2">
-            <span className="text-indigo-400 text-base">〰</span>
-            <span className="font-semibold text-sm tracking-tight text-[var(--text-primary)]">
-              FreqRes
-            </span>
-          </div>
-          <button 
-            className="text-[var(--text-muted)] hover:text-white"
-            onClick={() => setIsSidebarOpen(true)}
-            aria-label="Open menu"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-          </button>
-        </div>
+        <Header
+          selectedTarget={selectedTarget}
+          onSelectTarget={setSelectedTarget}
+          isCompensated={isCompensated}
+          onToggleCompensated={() => setIsCompensated((p) => !p)}
+          isInteractiveGraph={isInteractiveGraph}
+          onToggleInteractiveGraph={() => setIsInteractiveGraph((p) => !p)}
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+          traceCount={traces.length}
+        />
 
         <div className="flex-1 flex flex-col relative overflow-y-auto overflow-x-hidden">
           <div 

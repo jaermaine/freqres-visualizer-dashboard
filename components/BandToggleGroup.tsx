@@ -51,8 +51,10 @@ export function BandToggleGroup({ enabled, onToggle, onClearCategory, onHover, d
                   </button>
                 )}
               </div>
-              <span className="text-xs leading-none" style={{ color: "var(--text-muted)" }}>
-                {isOpen ? "▲" : "▼"}
+              <span className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} style={{ color: "var(--text-muted)" }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
               </span>
             </div>
             {isOpen && (
