@@ -6,6 +6,8 @@ const REVIEWER_MAP: Record<string, string> = {
   "superreview": "Super*Review",
   "super_review": "Super*Review",
   "jaytiss": "Jaytiss",
+  "jaysaudio": "Jay's Audio",
+  "jays_audio": "Jay's Audio",
   "hbb": "HawaiiBadBoy (HBB)",
   "hawaiibadboy": "HawaiiBadBoy (HBB)",
   "gizmosaudio": "GizAudio",
@@ -27,10 +29,10 @@ const REVIEWER_MAP: Record<string, string> = {
 export function getReviewerName(trace: Trace): string {
   if (!trace.source) return "";
   if (trace.source.kind === "squiglink-share-url") {
-    let key = trace.source.host.replace(".squig.link", "").toLowerCase();
+    let key = trace.source.host.replace(".squig.link", "").replace(".github.io", "").toLowerCase();
     
     // If apex domain squig.link or sub-folder structure (e.g. squig.link/lab/joycesreview/)
-    if (key === "squig.link" || key === "squig" || key === "www" || !key) {
+    if (key === "squig.link" || key === "github.io" || key === "squig" || key === "www" || !key) {
       try {
         const url = new URL(trace.source.baseUrl);
         const parts = url.pathname.split("/").filter((p) => p && !p.endsWith(".html"));
@@ -42,7 +44,7 @@ export function getReviewerName(trace: Trace): string {
     }
 
     if (REVIEWER_MAP[key]) return REVIEWER_MAP[key];
-    if (key && key !== "squig.link" && key !== "lab") {
+    if (key && key !== "squig.link" && key !== "github.io" && key !== "lab") {
       return key.charAt(0).toUpperCase() + key.slice(1);
     }
     return "Squig.link";

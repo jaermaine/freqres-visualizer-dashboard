@@ -9,7 +9,7 @@
 
 | URL pattern                        | Classification             | Plotable |
 |------------------------------------|----------------------------|----------|
-| `*.squig.link` (no raw ext)        | `squiglink-share-url`      | No       |
+| `*.squig.link`, `*.github.io` (no raw ext) | `squiglink-share-url`      | No       |
 | `graph.hangout.audio` (no raw ext) | `hangout-graph-url`        | No       |
 | Path ends in `.txt/.csv/.tsv`      | `raw-measurement-file-url` | Yes      |
 | Anything else                      | `unsupported-url`          | No       |

@@ -55,14 +55,19 @@ export async function verifyUrlSafety(urlString: string): Promise<{ safe: boolea
   const host = url.hostname.toLowerCase();
 
   // 1. Domain Allowlist Check
-  // We implicitly trust *.squig.link and graph.hangout.audio, but we'll still check their DNS just in case.
-  const isTrustedAppDomain = host.endsWith(".squig.link") || host === "squig.link" || host === "graph.hangout.audio";
+  // We implicitly trust *.squig.link, *.github.io, and graph.hangout.audio, but we'll still check their DNS just in case.
+  const isTrustedAppDomain =
+    host.endsWith(".squig.link") ||
+    host === "squig.link" ||
+    host.endsWith(".github.io") ||
+    host === "github.io" ||
+    host === "graph.hangout.audio";
   const isAllowedThirdParty = ALLOWED_DOMAINS.has(host);
 
   if (!isTrustedAppDomain && !isAllowedThirdParty) {
     return { 
       safe: false, 
-      reason: "Domain not in safe-list. Allowed domains: *.squig.link, graph.hangout.audio, raw.githubusercontent.com." 
+      reason: "Domain not in safe-list. Allowed domains: *.squig.link, *.github.io, graph.hangout.audio, raw.githubusercontent.com." 
     };
   }
 

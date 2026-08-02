@@ -30,8 +30,13 @@ export function parseSourceUrl(input: string): ParsedSourceUrl {
 
   const { hostname, pathname, searchParams } = url;
 
-  // Squig.link: apex domain squig.link OR any subdomain *.squig.link
-  if (hostname === "squig.link" || hostname.endsWith(".squig.link")) {
+  // Squig.link & GitHub Pages CrinGraph databases (*.squig.link, *.github.io)
+  if (
+    hostname === "squig.link" ||
+    hostname.endsWith(".squig.link") ||
+    hostname === "github.io" ||
+    hostname.endsWith(".github.io")
+  ) {
     const e = ext(pathname);
     if (RAW_EXTS.has(e)) {
       return { kind: "raw-measurement-file-url", ext: e as "txt" | "csv" | "tsv", url: input.trim() };
@@ -87,7 +92,7 @@ export function parseSourceUrl(input: string): ParsedSourceUrl {
 
   return {
     kind: "unsupported-url",
-    reason: `Unrecognized host "${hostname}". Supported: *.squig.link, graph.hangout.audio, or direct .txt/.csv/.tsv URLs.`,
+    reason: `Unrecognized host "${hostname}". Supported: *.squig.link, *.github.io, graph.hangout.audio, or direct .txt/.csv/.tsv URLs.`,
   };
 }
 
