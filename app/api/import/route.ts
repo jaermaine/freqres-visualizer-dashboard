@@ -43,6 +43,24 @@ async function readStreamSafely(resp: Response): Promise<string> {
   return new TextDecoder().decode(combined);
 }
 
+async function fetchFirstValidStream(urls: string[]): Promise<{ text: string; url: string } | null> {
+  for (const u of urls) {
+    try {
+      const resp = await fetch(u, {
+        headers: { Accept: "text/plain,text/csv,*/*" },
+        signal: AbortSignal.timeout(12000),
+      });
+      if (resp.ok && !(resp.headers.get("content-type") ?? "").includes("text/html")) {
+        const text = await readStreamSafely(resp);
+        if (text && text.trim().length > 0) {
+          return { text, url: u };
+        }
+      }
+    } catch {}
+  }
+  return null;
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse<ImportResult>> {
   // 1. Rate Limiting Check
   const ip = req.ip || req.headers.get("x-forwarded-for") || "unknown";
@@ -93,45 +111,37 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImportResult>
             let leftCurve: CurveData | null = null;
             let rightCurve: CurveData | null = null;
 
+            const leftUrls = entry.leftUrls ?? [entry.leftUrl];
+            const rightUrls = entry.rightUrls ?? [entry.rightUrl];
+            const fallbackUrls = entry.fallbackUrls ?? [entry.fallbackUrl];
+
             // Fetch Left Channel
-            try {
-              const respL = await fetch(entry.leftUrl, {
-                headers: { Accept: "text/plain,text/csv,*/*" },
-                signal: AbortSignal.timeout(12000),
-              });
-              if (respL.ok && !(respL.headers.get("content-type") ?? "").includes("text/html")) {
-                const textL = await readStreamSafely(respL);
-                const pL = parseMeasurementText(textL);
-                if (pL.ok) {
-                  leftCurve = {
-                    label: `${entry.label} (L)`,
-                    channel: "L",
-                    points: pL.points,
-                    normalized: pL.normalized,
-                  };
-                }
+            const resL = await fetchFirstValidStream(leftUrls);
+            if (resL) {
+              const pL = parseMeasurementText(resL.text);
+              if (pL.ok) {
+                leftCurve = {
+                  label: `${entry.label} (L)`,
+                  channel: "L",
+                  points: pL.points,
+                  normalized: pL.normalized,
+                };
               }
-            } catch {}
+            }
 
             // Fetch Right Channel
-            try {
-              const respR = await fetch(entry.rightUrl, {
-                headers: { Accept: "text/plain,text/csv,*/*" },
-                signal: AbortSignal.timeout(12000),
-              });
-              if (respR.ok && !(respR.headers.get("content-type") ?? "").includes("text/html")) {
-                const textR = await readStreamSafely(respR);
-                const pR = parseMeasurementText(textR);
-                if (pR.ok) {
-                  rightCurve = {
-                    label: `${entry.label} (R)`,
-                    channel: "R",
-                    points: pR.points,
-                    normalized: pR.normalized,
-                  };
-                }
+            const resR = await fetchFirstValidStream(rightUrls);
+            if (resR) {
+              const pR = parseMeasurementText(resR.text);
+              if (pR.ok) {
+                rightCurve = {
+                  label: `${entry.label} (R)`,
+                  channel: "R",
+                  points: pR.points,
+                  normalized: pR.normalized,
+                };
               }
-            } catch {}
+            }
 
             // If both L and R succeeded
             if (leftCurve && rightCurve) {
@@ -156,24 +166,18 @@ export async function POST(req: NextRequest): Promise<NextResponse<ImportResult>
               curves.push({ ...rightCurve, label: entry.label, channel: "avg" });
             } else {
               // Fallback to bare .txt file
-              try {
-                const respFallback = await fetch(entry.fallbackUrl, {
-                  headers: { Accept: "text/plain,text/csv,*/*" },
-                  signal: AbortSignal.timeout(12000),
-                });
-                if (respFallback.ok && !(respFallback.headers.get("content-type") ?? "").includes("text/html")) {
-                  const textFb = await readStreamSafely(respFallback);
-                  const pFb = parseMeasurementText(textFb);
-                  if (pFb.ok) {
-                    curves.push({
-                      label: entry.label,
-                      channel: "avg",
-                      points: pFb.points,
-                      normalized: pFb.normalized,
-                    });
-                  }
+              const resFb = await fetchFirstValidStream(fallbackUrls);
+              if (resFb) {
+                const pFb = parseMeasurementText(resFb.text);
+                if (pFb.ok) {
+                  curves.push({
+                    label: entry.label,
+                    channel: "avg",
+                    points: pFb.points,
+                    normalized: pFb.normalized,
+                  });
                 }
-              } catch {}
+              }
             }
           }
           

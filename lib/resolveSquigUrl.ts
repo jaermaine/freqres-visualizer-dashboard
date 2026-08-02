@@ -30,6 +30,9 @@ export type ResolvedFile = {
   leftUrl: string;
   rightUrl: string;
   fallbackUrl: string;
+  leftUrls: string[];
+  rightUrls: string[];
+  fallbackUrls: string[];
 };
 
 // Simple process-lifetime cache: avoids re-fetching phone_book for the same baseUrl
@@ -78,7 +81,7 @@ function matchScore(file: string, token: string): number {
  * Resolve model tokens from a squig.link share URL into raw .txt file URLs.
  *
  * CrinGraph sites serve per-channel files: "{file} L.txt" and "{file} R.txt".
- * Returns leftUrl, rightUrl, and fallbackUrl for each resolved model.
+ * Supports sites storing measurements in "data/audio_db/" or "data/".
  */
 export async function resolveSquigUrls(
   baseUrl: string,
@@ -106,8 +109,12 @@ export async function resolveSquigUrls(
           if (score > bestScore) {
             bestScore = score;
             const encodedFile = file.replace(/ /g, "%20");
-            const base = `${baseUrl}data/${encodedFile}`;
-            
+            const subdirs = ["data/audio_db/", "data/"];
+
+            const leftUrls = subdirs.map((sd) => `${baseUrl}${sd}${encodedFile} L.txt`);
+            const rightUrls = subdirs.map((sd) => `${baseUrl}${sd}${encodedFile} R.txt`);
+            const fallbackUrls = subdirs.map((sd) => `${baseUrl}${sd}${encodedFile}.txt`);
+
             // Prevent duplicated brand names (e.g. "Truthear Truthear Gate")
             const resolvedLabel = phone.name.toLowerCase().startsWith(brand.name.toLowerCase())
               ? phone.name
@@ -115,9 +122,12 @@ export async function resolveSquigUrls(
 
             bestResult = {
               label: resolvedLabel,
-              leftUrl: `${base} L.txt`,
-              rightUrl: `${base} R.txt`,
-              fallbackUrl: `${base}.txt`,
+              leftUrl: leftUrls[0],
+              rightUrl: rightUrls[0],
+              fallbackUrl: fallbackUrls[0],
+              leftUrls,
+              rightUrls,
+              fallbackUrls,
             };
             if (score === 2) break; // exact match — no need to search further in this phone
           }
