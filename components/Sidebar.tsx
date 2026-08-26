@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { TraceList } from "./TraceList";
 import { BandToggleGroup } from "./BandToggleGroup";
@@ -89,6 +89,7 @@ export function Sidebar({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const [openSections, setOpenSections] = useState({
     traces: true,
@@ -100,6 +101,26 @@ export function Sidebar({
   const toggleSection = (section: keyof typeof openSections) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
+
+  // Click outside and Escape key listener to close search autocomplete dropdown
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setSearchResults([]);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSearchResults([]);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   useEffect(() => {
     if (searchQuery.length < 2) {
@@ -298,7 +319,7 @@ export function Sidebar({
             </div>
           </div>
 
-          <div className="relative">
+          <div className="relative" ref={searchContainerRef}>
             <input
               type="text"
               className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-indigo-500 font-mono transition-all"
@@ -365,7 +386,7 @@ export function Sidebar({
         <section className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
           <div
             onClick={() => toggleSection("traces")}
-            className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none"
+            className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none sticky top-0 z-10 border-b border-transparent"
           >
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-[var(--text-primary)]">
@@ -374,15 +395,32 @@ export function Sidebar({
             </div>
             <div className="flex items-center gap-2">
               {traces.length > 0 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleClearAllTraces();
-                  }}
-                  className="text-[10px] font-semibold text-rose-400 hover:text-rose-300"
-                >
-                  Clear All
-                </button>
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const allVisible = traces.every((t) => t.visible);
+                      traces.forEach((t) => {
+                        if (allVisible && t.visible) onToggleTrace(t.id);
+                        else if (!allVisible && !t.visible) onToggleTrace(t.id);
+                      });
+                    }}
+                    className="text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                    title={traces.every((t) => t.visible) ? "Hide all active traces" : "Show all active traces"}
+                  >
+                    {traces.every((t) => t.visible) ? "Hide All" : "Show All"}
+                  </button>
+                  <span className="text-[var(--border-subtle)]">•</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleClearAllTraces();
+                    }}
+                    className="text-[10px] font-semibold text-rose-400 hover:text-rose-300"
+                  >
+                    Clear All
+                  </button>
+                </>
               )}
               <span className={`transition-transform duration-200 ${openSections.traces ? "rotate-180" : ""}`} style={{ color: "var(--text-muted)" }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -393,7 +431,7 @@ export function Sidebar({
           </div>
 
           {openSections.traces && (
-            <div className="p-2 border-t border-[var(--border-subtle)]">
+            <div className="p-2 border-t border-[var(--border-subtle)] max-h-[340px] overflow-y-auto custom-scrollbar flex flex-col pr-1">
               <TraceList
                 traces={traces}
                 onToggle={onToggleTrace}
@@ -412,7 +450,7 @@ export function Sidebar({
         <section className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
           <div
             onClick={() => toggleSection("bands")}
-            className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none"
+            className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none sticky top-0 z-10 border-b border-transparent"
           >
             <span className="text-xs font-bold text-[var(--text-primary)]">Parameter Bands</span>
             <span className={`transition-transform duration-200 ${openSections.bands ? "rotate-180" : ""}`} style={{ color: "var(--text-muted)" }}>
@@ -423,7 +461,7 @@ export function Sidebar({
           </div>
 
           {openSections.bands && (
-            <div className="p-3 border-t border-[var(--border-subtle)] flex flex-col gap-2">
+            <div className="p-3 border-t border-[var(--border-subtle)] flex flex-col gap-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
               {enabledBands.size > 0 && (
                 <div className="flex items-center justify-end">
                   <button
@@ -450,7 +488,7 @@ export function Sidebar({
         <section className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
           <div
             onClick={() => toggleSection("workspaces")}
-            className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none"
+            className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none sticky top-0 z-10 border-b border-transparent"
           >
             <span className="text-xs font-bold text-[var(--text-primary)]">
               Saved Workspaces ({Object.keys(savedWorkspaces).length})

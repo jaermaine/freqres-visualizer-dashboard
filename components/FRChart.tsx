@@ -186,9 +186,10 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
   const formatFreq = (hz: number) => hz >= 1000 ? `${Number((hz / 1000).toFixed(1))}k` : `${hz}`;
 
   // Parameter bands as thick horizontal traces stacked at the top of the graph
+  const bandStep = Math.min(0.9, 8 / Math.max(activeBands.length, 1));
   activeBands.forEach((band, index) => {
     const isLocked = enabledBands.has(band.id);
-    const yPos = yMax - (index * 1.5) - 0.5; // Stack from (yMax - 0.5) downwards
+    const yPos = yMax - (index * bandStep) - 0.4; // Stack compactly from (yMax - 0.4) downwards
     const bandColor = band.color.replace(/[\d.]+\)$/, isLocked ? '0.9)' : '0.4)'); // visual distinction
 
     let xVals = [band.freqLow, band.freqHigh];
@@ -207,7 +208,7 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
       name: band.label,
       line: {
         color: bandColor,
-        width: 10,
+        width: 7,
       },
       hoverinfo: "skip",
       showlegend: false, // hide from legend
@@ -306,7 +307,12 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
     showlegend: visibleTraces.length >= 2, // only show legend if at least 2 graphs
     paper_bgcolor: CHART_BG,
     plot_bgcolor: CHART_BG,
-    margin: { l: 56, r: 20, t: 28, b: 52 },
+    margin: { 
+      l: 56, 
+      r: 20, 
+      t: visibleTraces.length > 4 ? 40 : 28, 
+      b: 52 
+    },
 
     xaxis: {
       type: "log",
@@ -349,13 +355,14 @@ export function FRChart({ traces, enabledBands, hoveredBands = new Set(), select
     legend: {
       orientation: "h",
       yanchor: "bottom",
-      y: 1.02,
+      y: 1.01,
       xanchor: "right",
       x: 1,
       bgcolor: LEGEND_BG,
       bordercolor: LEGEND_BORDER,
       borderwidth: 1,
-      font: { size: 11, color: TEXT_COLOR },
+      font: { size: 10.5, color: TEXT_COLOR },
+      traceorder: "normal",
     },
 
     hovermode: "x unified",

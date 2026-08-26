@@ -154,71 +154,74 @@ export function DifferenceTable({ traces, theme = 'dark', isCompensated, selecte
         </div>
       </div>
       
-      {!isValid && (
-        <div className="absolute inset-0 top-[37px] z-10 flex flex-col items-center justify-center bg-black/50 backdrop-blur-[2px]">
-          <div className={`px-4 py-2 rounded-md shadow-lg text-sm font-medium ${
-            theme === 'light' ? 'bg-white text-slate-800 border border-slate-200' : 'bg-slate-800 text-slate-200 border border-slate-700'
+      {!isValid ? (
+        <div className="p-6 flex flex-col items-center justify-center gap-2 text-center">
+          <div className={`px-4 py-2.5 rounded-lg text-xs font-medium border ${
+            theme === 'light' 
+              ? 'bg-slate-50 text-slate-700 border-slate-200 shadow-sm' 
+              : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border)] shadow-sm'
           }`}>
-            Please select exactly 2 traces to view the A/B comparison. (Currently selected: {visibleTraces.length})
+            <span className="font-semibold text-[var(--text-primary)]">A/B Comparison Table: </span>
+            Please select exactly 2 visible traces in the sidebar to compare frequency response delta. (Currently active: {visibleTraces.length})
           </div>
         </div>
-      )}
-
-      <div className={`overflow-x-auto ${!isValid ? 'opacity-30 pointer-events-none filter blur-[1px]' : ''}`}>
-        <table className="w-full text-sm text-left">
-          <thead className={`text-xs uppercase ${
-            theme === 'light' ? 'text-slate-500 bg-slate-50 border-b border-slate-200' : 'text-slate-400 bg-[#151923] border-b border-slate-800'
-          }`}>
-            <tr>
-              <th className="px-4 py-3 font-medium w-1/4">Freq (Hz)</th>
-              <th className="px-4 py-3 font-medium w-1/4">
-                {traceA ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: traceA.color }}></div>
-                    <span className="truncate max-w-[150px]" title={traceA.label}>{traceA.label} (A)</span>
-                  </div>
-                ) : (
-                  <span className="opacity-50">Trace A</span>
-                )}
-              </th>
-              <th className="px-4 py-3 font-medium w-1/4">
-                {traceB ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: traceB.color }}></div>
-                    <span className="truncate max-w-[150px]" title={traceB.label}>{traceB.label} (B)</span>
-                  </div>
-                ) : (
-                  <span className="opacity-50">Trace B</span>
-                )}
-              </th>
-              <th className="px-4 py-3 font-medium text-right w-1/4">Delta (dB)</th>
-            </tr>
-          </thead>
-          <tbody className={theme === 'light' ? 'divide-y divide-slate-100' : 'divide-y divide-slate-800/50'}>
-            {compareData.map((row) => (
-              <tr key={row.freq} className={`transition-colors ${
-                theme === 'light' ? 'hover:bg-slate-50' : 'hover:bg-slate-800/20'
-              }`}>
-                <td className="px-4 py-2.5 font-medium">{row.freq >= 1000 ? `${row.freq/1000}k` : row.freq}</td>
-                <td className="px-4 py-2.5">
-                  {row.valA !== null ? (isCompensated ? (row.valA > 0 ? `+${row.valA.toFixed(1)}` : row.valA.toFixed(1)) : row.valA.toFixed(1)) : '-'}
-                </td>
-                <td className="px-4 py-2.5">
-                  {row.valB !== null ? (isCompensated ? (row.valB > 0 ? `+${row.valB.toFixed(1)}` : row.valB.toFixed(1)) : row.valB.toFixed(1)) : '-'}
-                </td>
-                <td className={`px-4 py-2.5 text-right font-medium ${
-                  row.delta === null ? '' : 
-                  row.delta > 2 ? 'text-red-400' : 
-                  row.delta < -2 ? 'text-blue-400' : 
-                  theme === 'light' ? 'text-slate-600' : 'text-slate-300'
-                }`}>
-                  {row.delta !== null ? (row.delta > 0 ? `+${row.delta.toFixed(1)}` : row.delta.toFixed(1)) : '-'}
-                </td>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className={`text-xs uppercase ${
+              theme === 'light' ? 'text-slate-500 bg-slate-50 border-b border-slate-200' : 'text-slate-400 bg-[#151923] border-b border-slate-800'
+            }`}>
+              <tr>
+                <th className="px-4 py-3 font-medium w-1/4">Freq (Hz)</th>
+                <th className="px-4 py-3 font-medium w-1/4">
+                  {traceA ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: traceA.color }}></div>
+                      <span className="truncate max-w-[150px]" title={traceA.label}>{traceA.label} (A)</span>
+                    </div>
+                  ) : (
+                    <span className="opacity-50">Trace A</span>
+                  )}
+                </th>
+                <th className="px-4 py-3 font-medium w-1/4">
+                  {traceB ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: traceB.color }}></div>
+                      <span className="truncate max-w-[150px]" title={traceB.label}>{traceB.label} (B)</span>
+                    </div>
+                  ) : (
+                    <span className="opacity-50">Trace B</span>
+                  )}
+                </th>
+                <th className="px-4 py-3 font-medium text-right w-1/4">Delta (dB)</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className={theme === 'light' ? 'divide-y divide-slate-100' : 'divide-y divide-slate-800/50'}>
+              {compareData.map((row) => (
+                <tr key={row.freq} className={`transition-colors ${
+                  theme === 'light' ? 'hover:bg-slate-50' : 'hover:bg-slate-800/20'
+                }`}>
+                  <td className="px-4 py-2.5 font-medium">{row.freq >= 1000 ? `${row.freq/1000}k` : row.freq}</td>
+                  <td className="px-4 py-2.5">
+                    {row.valA !== null ? (isCompensated ? (row.valA > 0 ? `+${row.valA.toFixed(1)}` : row.valA.toFixed(1)) : row.valA.toFixed(1)) : '-'}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {row.valB !== null ? (isCompensated ? (row.valB > 0 ? `+${row.valB.toFixed(1)}` : row.valB.toFixed(1)) : row.valB.toFixed(1)) : '-'}
+                  </td>
+                  <td className={`px-4 py-2.5 text-right font-medium ${
+                    row.delta === null ? '' : 
+                    row.delta > 2 ? 'text-red-400' : 
+                    row.delta < -2 ? 'text-blue-400' : 
+                    theme === 'light' ? 'text-slate-600' : 'text-slate-300'
+                  }`}>
+                    {row.delta !== null ? (row.delta > 0 ? `+${row.delta.toFixed(1)}` : row.delta.toFixed(1)) : '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

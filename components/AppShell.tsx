@@ -848,8 +848,8 @@ export function AppShell() {
         </div>
         
         {/* Floating Toast Notification */}
-        <div className="absolute bottom-4 left-4 right-4 md:bottom-6 md:left-auto md:right-6 z-40 shadow-lg md:max-w-[320px]">
-          <ImportStatus result={lastResult} loading={loading} />
+        <div className="absolute bottom-4 left-4 right-4 md:bottom-6 md:left-auto md:right-6 z-40 md:max-w-[320px]">
+          <ImportStatus result={lastResult} loading={loading} onDismiss={() => setLastResult(null)} />
         </div>
       </main>
 
