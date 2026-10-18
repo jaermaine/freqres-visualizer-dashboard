@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { PARAMETER_BANDS, BAND_CATEGORIES } from "@/lib/parameterBands";
-import type { BandCategory } from "@/types/audio";
 
 interface Props {
   enabled: Set<string>;
@@ -12,7 +11,13 @@ interface Props {
   disabled?: boolean;
 }
 
-export function BandToggleGroup({ enabled, onToggle, onClearCategory, onHover, disabled }: Props) {
+export const BandToggleGroup = React.memo(function BandToggleGroup({
+  enabled,
+  onToggle,
+  onClearCategory,
+  onHover,
+  disabled,
+}: Props) {
   const [openCats, setOpenCats] = useState<Set<string>>(new Set(["bass"]));
 
   const toggleCat = (id: string) => {
@@ -40,19 +45,35 @@ export function BandToggleGroup({ enabled, onToggle, onClearCategory, onHover, d
             >
               <div className="flex items-center gap-2">
                 <p className="label-xs mb-0 m-0 leading-none">
-                  {cat.label} {activeCount > 0 && <span className="text-indigo-400">({activeCount})</span>}
+                  {cat.label}{" "}
+                  {activeCount > 0 && <span className="text-indigo-400">({activeCount})</span>}
                 </p>
                 {activeCount > 0 && onClearCategory && (
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); onClearCategory(cat.id); }}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onClearCategory(cat.id);
+                    }}
                     className="text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors"
                   >
                     Clear
                   </button>
                 )}
               </div>
-              <span className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} style={{ color: "var(--text-muted)" }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <span
+                className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                style={{ color: "var(--text-muted)" }}
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
               </span>
@@ -100,4 +121,4 @@ export function BandToggleGroup({ enabled, onToggle, onClearCategory, onHover, d
       })}
     </div>
   );
-}
+});

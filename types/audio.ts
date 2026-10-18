@@ -87,7 +87,8 @@ export type ParseResult = ParserSuccess | ParserError;
 export type CurveData = {
   label: string;
   channel?: "L" | "R" | "avg";
-  points: FRPoint[];
+  points?: FRPoint[];
+  pointCount?: number;
   normalized: NormalizedCurve;
   rawChannels?: {
     left?: NormalizedCurve;

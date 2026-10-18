@@ -53,12 +53,13 @@ export default function LegalPage() {
         <section className="mb-8">
           <h2 className="text-base font-semibold mb-2">3. Privacy Policy</h2>
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-3">
-            FreqRes respects your privacy. The application is completely stateless:
+            FreqRes respects your privacy and minimizes data retention:
           </p>
           <ul className="text-sm text-[var(--text-secondary)] flex flex-col gap-2 pl-4 list-disc">
             <li><strong>No Tracking:</strong> We do not use tracking cookies, analytics trackers, or user profiling.</li>
-            <li><strong>No Database:</strong> We do not operate a backend database. Your imported traces, custom labels, and color preferences are stored strictly locally in your browser memory and are lost when you refresh the page.</li>
-            <li><strong>Proxy Requests:</strong> When you import a URL, our proxy server briefly processes the URL to fetch the raw data on your behalf. This is done purely in-memory to bypass CORS restrictions. No logs of your specific URL imports or IP addresses are permanently retained by our application logic.</li>
+            <li><strong>Local Browser Storage:</strong> Your active traces, custom labels, saved workspaces, and theme preferences are stored locally in your browser&apos;s <code>localStorage</code> so your session persists across refreshes. You can clear this data at any time from the dashboard or your browser settings.</li>
+            <li><strong>Shared Workspaces (3-Day TTL):</strong> When you explicitly generate a shareable shortlink, the workspace configuration (trace URLs, labels, colors, and notes) and an OpenGraph preview image are stored in Upstash Redis with an automatic 3-day (259,200-second) expiration.</li>
+            <li><strong>Proxy Requests &amp; Rate Limiting:</strong> When you import a URL or create a share link, our server processes your request to fetch raw measurement data and applies short-lived rate limiting by IP address to prevent abuse.</li>
           </ul>
         </section>
 

@@ -117,7 +117,7 @@ export function ImportStatus({ result, loading, onDismiss }: Props) {
         {result.curves.map((curve, idx) => (
           <div key={idx} className="flex justify-between items-center text-xs">
             <span className="font-medium" style={{ color: "var(--text-primary)" }}>{curve.label}</span>
-            <span style={{ color: "var(--text-muted)", fontSize: "0.65rem" }}>{curve.points.length} pts</span>
+            <span style={{ color: "var(--text-muted)", fontSize: "0.65rem" }}>{curve.pointCount ?? curve.points?.length ?? curve.normalized.hz.length} pts</span>
           </div>
         ))}
       </div>

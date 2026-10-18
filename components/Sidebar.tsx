@@ -1,20 +1,20 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { TraceList } from "./TraceList";
 import { BandToggleGroup } from "./BandToggleGroup";
-import type { Trace, ImportResult } from "@/types/audio";
-import { TUNING_TARGETS } from "@/lib/targets";
+import type { Trace } from "@/types/audio";
 
 interface Props {
   traces: Trace[];
   enabledBands: Set<string>;
-  lastResult: ImportResult | null;
   loading: boolean;
   onImport: (url: string, channelMode?: "separate" | "avg") => Promise<boolean>;
   onToggleTrace: (id: string) => void;
+  onToggleAllTraces?: () => void;
   onRemoveTrace: (id: string) => void;
+  onClearAllTraces?: () => void;
   onColorChange: (id: string, color: string) => void;
   onLabelChange: (id: string, label: string) => void;
   onNoteChange: (id: string, note: string) => void;
@@ -23,12 +23,6 @@ interface Props {
   onClearAllBands: () => void;
   onClearCategory: (categoryId: string) => void;
   onHoverBand?: (id: string | null) => void;
-  isInteractiveGraph: boolean;
-  onToggleInteractiveGraph: () => void;
-  selectedTarget: string;
-  onSelectTarget: (id: string) => void;
-  isCompensated: boolean;
-  onToggleCompensated: () => void;
   onShareWorkspace: () => void;
   onExportImage: () => void;
   isCopied: boolean;
@@ -36,7 +30,7 @@ interface Props {
   isExportingImage?: boolean;
   isOpen?: boolean;
   onClose?: () => void;
-  theme: 'dark' | 'light';
+  theme: "dark" | "light";
   onToggleTheme: () => void;
   savedWorkspaces: Record<string, any>;
   onSaveWorkspace: (name: string) => void;
@@ -45,13 +39,15 @@ interface Props {
   onToggleChannelMode?: (id: string) => void;
 }
 
-export function Sidebar({
+export const Sidebar = React.memo(function Sidebar({
   traces,
   enabledBands,
   loading,
   onImport,
   onToggleTrace,
+  onToggleAllTraces,
   onRemoveTrace,
+  onClearAllTraces,
   onColorChange,
   onLabelChange,
   onNoteChange,
@@ -60,12 +56,6 @@ export function Sidebar({
   onClearAllBands,
   onClearCategory,
   onHoverBand,
-  isInteractiveGraph,
-  onToggleInteractiveGraph,
-  selectedTarget,
-  onSelectTarget,
-  isCompensated,
-  onToggleCompensated,
   onShareWorkspace,
   onExportImage,
   isCopied,
@@ -81,7 +71,6 @@ export function Sidebar({
   onDeleteWorkspace,
   onToggleChannelMode,
 }: Props) {
-  const [ingestMode, setIngestMode] = useState<"search" | "url">("search");
   const [channelMode, setChannelMode] = useState<"separate" | "avg">("avg");
   const [url, setUrl] = useState("");
   const [cooldown, setCooldown] = useState(0);
@@ -127,20 +116,38 @@ export function Sidebar({
       setSearchResults([]);
       return;
     }
+    // Skip autocomplete search when input looks like a URL
+    if (
+      searchQuery.includes("http://") ||
+      searchQuery.includes("https://") ||
+      searchQuery.includes("share=")
+    ) {
+      setSearchResults([]);
+      return;
+    }
+
+    const controller = new AbortController();
     const delayDebounceFn = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`, {
+          signal: controller.signal,
+        });
         const data = await res.json();
         setSearchResults(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error(err);
+      } catch (err: any) {
+        if (err?.name !== "AbortError") {
+          console.error(err);
+        }
       } finally {
         setIsSearching(false);
       }
-    }, 400);
+    }, 300);
 
-    return () => clearTimeout(delayDebounceFn);
+    return () => {
+      clearTimeout(delayDebounceFn);
+      controller.abort();
+    };
   }, [searchQuery]);
 
   useEffect(() => {
@@ -151,25 +158,36 @@ export function Sidebar({
 
   const handleImport = useCallback(async () => {
     if (!url.trim() || loading || cooldown > 0) return;
-    const urls = url.split(/[\n, ]+/).map((u) => u.trim()).filter(Boolean);
-    let successCount = 0;
-    for (const u of urls) {
-      const ok = await onImport(u, channelMode);
-      if (ok) successCount++;
+    const urls = url
+      .split(/[\n, ]+/)
+      .map((u) => u.trim())
+      .filter(Boolean);
+    const results = await Promise.all(urls.map((u) => onImport(u, channelMode)));
+    if (results.some(Boolean)) {
+      setUrl("");
+      setSearchQuery("");
     }
-    if (successCount > 0) setUrl("");
     setCooldown(2);
   }, [url, loading, cooldown, onImport, channelMode]);
 
-  const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleImport();
+  const handleClearAll = () => {
+    if (onClearAllTraces) {
+      onClearAllTraces();
+    } else {
+      traces.forEach((t) => onRemoveTrace(t.id));
     }
   };
 
-  const handleClearAllTraces = () => {
-    traces.forEach((t) => onRemoveTrace(t.id));
+  const handleToggleAll = () => {
+    if (onToggleAllTraces) {
+      onToggleAllTraces();
+    } else {
+      const allVisible = traces.every((t) => t.visible);
+      traces.forEach((t) => {
+        if (allVisible && t.visible) onToggleTrace(t.id);
+        else if (!allVisible && !t.visible) onToggleTrace(t.id);
+      });
+    }
   };
 
   return (
@@ -203,11 +221,28 @@ export function Sidebar({
             aria-label="Export PNG"
           >
             {isExportingImage ? (
-              <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                className="animate-spin"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
               </svg>
             ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="7 10 12 15 17 10"></polyline>
                 <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -222,7 +257,16 @@ export function Sidebar({
             title="Share Workspace Link"
             aria-label="Share Workspace Link"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <circle cx="18" cy="5" r="3"></circle>
               <circle cx="6" cy="12" r="3"></circle>
               <circle cx="18" cy="19" r="3"></circle>
@@ -243,7 +287,16 @@ export function Sidebar({
             aria-label="Toggle Theme"
           >
             {theme === "dark" ? (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <circle cx="12" cy="12" r="5"></circle>
                 <line x1="12" y1="1" x2="12" y2="3"></line>
                 <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -255,7 +308,16 @@ export function Sidebar({
                 <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
               </svg>
             ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
               </svg>
             )}
@@ -267,7 +329,16 @@ export function Sidebar({
             title="Open Guide & Help"
             aria-label="Guide"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <circle cx="12" cy="12" r="10"></circle>
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
               <line x1="12" y1="17" x2="12.01" y2="17"></line>
@@ -279,7 +350,16 @@ export function Sidebar({
             onClick={onClose}
             aria-label="Close menu"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
@@ -292,7 +372,9 @@ export function Sidebar({
         {/* Unified Smart Ingestion & Search Panel */}
         <section className="p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-[var(--text-primary)]">Import Measurements</span>
+            <span className="text-xs font-bold text-[var(--text-primary)]">
+              Import Measurements
+            </span>
             <div className="flex bg-[var(--bg-surface)] p-0.5 rounded border border-[var(--border-subtle)]">
               <button
                 onClick={() => setChannelMode("avg")}
@@ -333,7 +415,12 @@ export function Sidebar({
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  if (searchQuery.includes("http://") || searchQuery.includes("https://") || searchQuery.includes(".txt") || searchQuery.includes("share=")) {
+                  if (
+                    searchQuery.includes("http://") ||
+                    searchQuery.includes("https://") ||
+                    searchQuery.includes(".txt") ||
+                    searchQuery.includes("share=")
+                  ) {
                     handleImport();
                   }
                 }
@@ -342,7 +429,9 @@ export function Sidebar({
             />
 
             {isSearching && (
-              <p className="text-[10px] text-[var(--text-muted)] mt-1">Searching Squiglink database...</p>
+              <p className="text-[10px] text-[var(--text-muted)] mt-1">
+                Searching Squiglink database...
+              </p>
             )}
 
             {searchResults.length > 0 && (
@@ -371,7 +460,10 @@ export function Sidebar({
             )}
           </div>
 
-          {(searchQuery.includes("http://") || searchQuery.includes("https://") || searchQuery.includes(".txt") || searchQuery.includes("share=")) && (
+          {(searchQuery.includes("http://") ||
+            searchQuery.includes("https://") ||
+            searchQuery.includes(".txt") ||
+            searchQuery.includes("share=")) && (
             <button
               className="btn-primary w-full py-1.5 text-xs font-semibold"
               onClick={handleImport}
@@ -399,14 +491,14 @@ export function Sidebar({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      const allVisible = traces.every((t) => t.visible);
-                      traces.forEach((t) => {
-                        if (allVisible && t.visible) onToggleTrace(t.id);
-                        else if (!allVisible && !t.visible) onToggleTrace(t.id);
-                      });
+                      handleToggleAll();
                     }}
                     className="text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-                    title={traces.every((t) => t.visible) ? "Hide all active traces" : "Show all active traces"}
+                    title={
+                      traces.every((t) => t.visible)
+                        ? "Hide all active traces"
+                        : "Show all active traces"
+                    }
                   >
                     {traces.every((t) => t.visible) ? "Hide All" : "Show All"}
                   </button>
@@ -414,7 +506,7 @@ export function Sidebar({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleClearAllTraces();
+                      handleClearAll();
                     }}
                     className="text-[10px] font-semibold text-rose-400 hover:text-rose-300"
                   >
@@ -422,8 +514,22 @@ export function Sidebar({
                   </button>
                 </>
               )}
-              <span className={`transition-transform duration-200 ${openSections.traces ? "rotate-180" : ""}`} style={{ color: "var(--text-muted)" }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <span
+                className={`transition-transform duration-200 ${
+                  openSections.traces ? "rotate-180" : ""
+                }`}
+                style={{ color: "var(--text-muted)" }}
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
               </span>
@@ -453,8 +559,22 @@ export function Sidebar({
             className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none sticky top-0 z-10 border-b border-transparent"
           >
             <span className="text-xs font-bold text-[var(--text-primary)]">Parameter Bands</span>
-            <span className={`transition-transform duration-200 ${openSections.bands ? "rotate-180" : ""}`} style={{ color: "var(--text-muted)" }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <span
+              className={`transition-transform duration-200 ${
+                openSections.bands ? "rotate-180" : ""
+              }`}
+              style={{ color: "var(--text-muted)" }}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </span>
@@ -493,8 +613,22 @@ export function Sidebar({
             <span className="text-xs font-bold text-[var(--text-primary)]">
               Saved Workspaces ({Object.keys(savedWorkspaces).length})
             </span>
-            <span className={`transition-transform duration-200 ${openSections.workspaces ? "rotate-180" : ""}`} style={{ color: "var(--text-muted)" }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <span
+              className={`transition-transform duration-200 ${
+                openSections.workspaces ? "rotate-180" : ""
+              }`}
+              style={{ color: "var(--text-muted)" }}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </span>
@@ -525,7 +659,9 @@ export function Sidebar({
 
               <div className="flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar mt-1">
                 {Object.keys(savedWorkspaces).length === 0 ? (
-                  <p className="text-[11px] text-[var(--text-muted)] py-1">No saved workspaces yet.</p>
+                  <p className="text-[11px] text-[var(--text-muted)] py-1">
+                    No saved workspaces yet.
+                  </p>
                 ) : (
                   Object.keys(savedWorkspaces).map((name) => (
                     <div
@@ -543,7 +679,16 @@ export function Sidebar({
                         onClick={() => onDeleteWorkspace(name)}
                         aria-label={`Delete workspace ${name}`}
                       >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <line x1="18" y1="6" x2="6" y2="18"></line>
                           <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
@@ -578,4 +723,4 @@ export function Sidebar({
       </div>
     </aside>
   );
-}
+});

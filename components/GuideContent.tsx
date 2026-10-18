@@ -3,28 +3,34 @@
 import { useState } from "react";
 import Link from "next/link";
 import { TutorialSidebar } from "./TutorialSidebar";
+import { UrlPatternCard, type UrlPatternCardData } from "./UrlPatternCard";
+import { PARSER_ERROR_MESSAGES, FETCH_ERROR_MESSAGE } from "@/lib/errorMessages";
 import { parseSourceUrl } from "@/lib/parseSourceUrl";
 import type { ParsedSourceUrl } from "@/types/audio";
 
-const URL_PATTERNS = {
+const URL_PATTERNS: Record<"supported" | "raw" | "unsupported", UrlPatternCardData[]> = {
   supported: [
     {
       title: "Squig.link Share URL",
+      type: "graph-url",
       example: "https://precog.squig.link/?share=Precog_Target,TruthEars_Gate",
       note: "Standard Squig.link database share link. FreqRes automatically parses shared models and fetches raw measurement curves.",
     },
     {
       title: "AudioAmigo / Reviewer Subdomains",
+      type: "graph-url",
       example: "https://audioamigo.squig.link/?share=Truthear_Gate",
       note: "Supports all reviewer subdomains hosted on *.squig.link.",
     },
     {
       title: "Path-Based Squig Share URLs",
+      type: "graph-url",
       example: "https://squig.link/superreview/?share=Truthear_Gate",
       note: "Path-based reviewer databases on apex squig.link (e.g. Super*Review, Jaytiss).",
     },
     {
       title: "Joyce's Review & Nested Lab Databases",
+      type: "graph-url",
       example: "https://squig.link/lab/joycesreview/?share=CVJ_NOZOMI",
       note: "Nested lab databases on squig.link (e.g. Joyce's Review) with automatic reviewer attribution.",
     },
@@ -32,16 +38,19 @@ const URL_PATTERNS = {
   raw: [
     {
       title: "Direct .txt Measurement File",
+      type: "raw-file",
       example: "https://raw.githubusercontent.com/orgs/crinacle/measurements/Truthear_Gate.txt",
       note: "Direct link to plain-text measurement file with frequency and dB columns.",
     },
     {
       title: "Direct .csv Measurement File",
+      type: "raw-file",
       example: "https://example.com/measurements/headphone_fr.csv",
       note: "Comma-separated values with frequency and SPL columns.",
     },
     {
       title: "Direct .tsv Measurement File",
+      type: "raw-file",
       example: "https://example.com/measurements/headphone_fr.tsv",
       note: "Tab-separated values file.",
     },
@@ -49,16 +58,19 @@ const URL_PATTERNS = {
   unsupported: [
     {
       title: "Hangout Audio Graph URL",
+      type: "unsupported",
       example: "https://graph.hangout.audio/iem/5128/?share=JM-1_Target,Rockies",
       note: "Does not expose public raw curve files on this endpoint.",
     },
     {
       title: "CSI-Zone / Malformed Data",
+      type: "unsupported",
       example: "https://csi-zone.squig.link/?share=Tanchjim_Nora",
       note: "Contains unsorted frequencies or broken CSV headers causing parsing errors.",
     },
     {
       title: "Earphones Archive",
+      type: "unsupported",
       example: "https://earphonesarchive.squig.link/?share=Tanchjim_Nora",
       note: "Irregular data structures that fail validation checks.",
     },
@@ -66,11 +78,11 @@ const URL_PATTERNS = {
 };
 
 const PARSE_ERRORS = [
-  { code: "HTML_RESPONSE", fix: "URL points to an HTML webpage instead of a raw data file. Find the direct file link." },
-  { code: "NO_VALID_ROWS", fix: "No parseable frequency/dB data rows found. Check column headers or text encoding." },
-  { code: "TOO_FEW_POINTS", fix: "Fewer than 10 valid data points found. Ensure sweep is complete." },
-  { code: "UNSUPPORTED_BINARY_CONTENT", fix: "File is binary (e.g. REW .mdat). Export as .txt or .csv from REW first." },
-  { code: "FETCH_ERROR", fix: "Network or CORS restriction. Ensure URL is publicly accessible." },
+  { code: "HTML_RESPONSE", fix: PARSER_ERROR_MESSAGES.HTML_RESPONSE },
+  { code: "NO_VALID_ROWS", fix: PARSER_ERROR_MESSAGES.NO_VALID_ROWS },
+  { code: "TOO_FEW_POINTS", fix: PARSER_ERROR_MESSAGES.TOO_FEW_POINTS },
+  { code: "UNSUPPORTED_BINARY_CONTENT", fix: PARSER_ERROR_MESSAGES.UNSUPPORTED_BINARY_CONTENT },
+  { code: "FETCH_ERROR", fix: FETCH_ERROR_MESSAGE },
 ];
 
 export function GuideContent() {
@@ -232,28 +244,7 @@ export function GuideContent() {
 
           <div className="flex flex-col gap-3">
             {URL_PATTERNS[activeTab].map((item) => (
-              <div key={item.title} className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-[var(--text-primary)]">{item.title}</span>
-                  <span
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded uppercase ${
-                      activeTab === "supported"
-                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                        : activeTab === "raw"
-                        ? "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                        : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
-                    }`}
-                  >
-                    {activeTab === "supported" ? "Supported" : activeTab === "raw" ? "Raw File" : "Unsupported"}
-                  </span>
-                </div>
-                <code className="block text-[11px] px-3 py-1.5 rounded bg-[var(--bg-base)] border border-[var(--border-subtle)] text-slate-300 font-mono break-all mb-2">
-                  {item.example}
-                </code>
-                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                  {item.note}
-                </p>
-              </div>
+              <UrlPatternCard key={item.title} card={item} />
             ))}
           </div>
         </section>

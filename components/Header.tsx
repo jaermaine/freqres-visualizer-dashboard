@@ -14,7 +14,7 @@ interface HeaderProps {
   traceCount: number;
 }
 
-export function Header({
+export const Header = React.memo(function Header({
   selectedTarget,
   onSelectTarget,
   isCompensated,
@@ -33,7 +33,16 @@ export function Header({
           className="md:hidden text-[var(--text-muted)] hover:text-white p-1"
           aria-label="Open sidebar"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <line x1="3" y1="12" x2="21" y2="12"></line>
             <line x1="3" y1="6" x2="21" y2="6"></line>
             <line x1="3" y1="18" x2="21" y2="18"></line>
@@ -75,7 +84,11 @@ export function Header({
               Raw (None)
             </option>
             {TUNING_TARGETS.map((t) => (
-              <option key={t.id} value={t.id} className="bg-[var(--bg-surface)] text-[var(--text-primary)]">
+              <option
+                key={t.id}
+                value={t.id}
+                className="bg-[var(--bg-surface)] text-[var(--text-primary)]"
+              >
                 {t.label}
               </option>
             ))}
@@ -120,4 +133,4 @@ export function Header({
       </div>
     </header>
   );
-}
+});

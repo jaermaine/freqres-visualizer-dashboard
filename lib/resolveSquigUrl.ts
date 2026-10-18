@@ -35,16 +35,27 @@ export type ResolvedFile = {
   fallbackUrls: string[];
 };
 
-// Simple process-lifetime cache: avoids re-fetching phone_book for the same baseUrl
-const phoneBookCache = new Map<string, BrandEntry[]>();
+// Bounded in-memory cache with 1-hour TTL and 50-host LRU cap
+const PHONE_BOOK_TTL_MS = 60 * 60 * 1000;
+const MAX_CACHED_HOSTS = 50;
+const phoneBookCache = new Map<string, { data: BrandEntry[]; timestamp: number }>();
 
 async function fetchPhoneBook(baseUrl: string): Promise<BrandEntry[]> {
-  if (phoneBookCache.has(baseUrl)) return phoneBookCache.get(baseUrl)!;
+  const now = Date.now();
+  const cached = phoneBookCache.get(baseUrl);
+  if (cached && now - cached.timestamp < PHONE_BOOK_TTL_MS) {
+    // Refresh LRU order
+    phoneBookCache.delete(baseUrl);
+    phoneBookCache.set(baseUrl, cached);
+    return cached.data;
+  }
 
   const url = `${baseUrl}data/phone_book.json`;
   const resp = await fetch(url, {
     headers: { Accept: "application/json, */*" },
+    redirect: "error",
     signal: AbortSignal.timeout(10000),
+    next: { revalidate: 3600 },
   });
 
   if (!resp.ok) {
@@ -52,7 +63,13 @@ async function fetchPhoneBook(baseUrl: string): Promise<BrandEntry[]> {
   }
 
   const data = (await resp.json()) as BrandEntry[];
-  phoneBookCache.set(baseUrl, data);
+  if (phoneBookCache.size >= MAX_CACHED_HOSTS) {
+    const oldestKey = phoneBookCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      phoneBookCache.delete(oldestKey);
+    }
+  }
+  phoneBookCache.set(baseUrl, { data, timestamp: now });
   return data;
 }
 

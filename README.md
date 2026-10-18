@@ -29,12 +29,12 @@ Instead of navigating complex proprietary databases or downloading text files ma
 
 ## 🛡️ Security & Privacy
 
-FreqRes operates strictly as a **stateless visualization client**. There is no backend database, and user data is processed entirely in the browser memory.
+FreqRes operates primarily as a **client-side visualization tool**. Active traces, workspaces, and theme preferences are stored locally in your browser's `localStorage`. When you explicitly click **Share** (`Ctrl+S`), your workspace configuration and OpenGraph preview snapshot are stored in Upstash Redis with an automatic **3-day TTL** so shortlinks (`/s/[id]`) can be shared.
 
-The backend proxy (`/api/import`) is heavily fortified against abuse:
-- **Anti-SSRF:** Enforces a strict domain allowlist and performs proactive DNS resolution to block malicious routing to private IP networks (e.g., localhost, AWS IMDS).
-- **Rate Limiting:** An in-memory rate limiter strictly caps endpoints to 30 requests per IP per minute.
-- **DoS Protection:** Utilizes custom chunked stream readers that immediately abort and drop connections if incoming payloads exceed 2MB, completely preventing memory exhaustion attacks.
+The backend endpoints (`/api/import`, `/api/share`, `/api/workspace`) are fortified against abuse:
+- **Anti-SSRF:** Enforces strict URL validation, disables HTTP redirects (`redirect: "error"`), and performs proactive DNS resolution across all records (`dns.lookup(..., { all: true })`) to block private IPv4/IPv6 ranges, IPv4-mapped IPv6 addresses (`::ffff:...`), CGNAT (`100.64.0.0/10`), and cloud metadata endpoints.
+- **Hybrid Rate Limiting:** Combines a bounded in-memory LRU/TTL rate limiter on `/api/import` (30 requests/IP/min) with Upstash Redis atomic rate limiting and strict payload schema validation on `/api/share` (10 shares/IP/min).
+- **DoS Protection:** Utilizes custom chunked stream readers with hard byte limits (2MB max) and strict request timeouts, preventing memory exhaustion attacks.
 
 ## 🚀 Getting Started (Local Development)
 

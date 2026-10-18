@@ -1,17 +1,63 @@
 import type { FRPoint, NormalizedCurve, ParseResult, ParserErrorCode } from "@/types/audio";
+import { PARSER_ERROR_MESSAGES } from "@/lib/errorMessages";
 
 const MIN_POINTS = 10;
 const LOG_GRID_START = Math.log10(20);
 const LOG_GRID_END = Math.log10(20000);
 const LOG_GRID_STEPS = 200;
 
-// Build the shared log-frequency grid (exported for normalization)
+// Precompute the shared 201-point log-frequency grid once at module load
+const STATIC_LOG_GRID: number[] = Array.from({ length: LOG_GRID_STEPS + 1 }, (_, i) =>
+  i === 0
+    ? 20
+    : i === LOG_GRID_STEPS
+    ? 20000
+    : Math.pow(10, LOG_GRID_START + (i / LOG_GRID_STEPS) * (LOG_GRID_END - LOG_GRID_START))
+);
+
 export function buildLogGrid(): number[] {
-  const out: number[] = [];
-  for (let i = 0; i <= LOG_GRID_STEPS; i++) {
-    out.push(Math.pow(10, LOG_GRID_START + (i / LOG_GRID_STEPS) * (LOG_GRID_END - LOG_GRID_START)));
+  return STATIC_LOG_GRID;
+}
+
+/**
+ * O(log N) binary-search interpolation in log10(Hz) frequency space.
+ * Assumes `xs` is sorted in ascending order and contains positive frequencies.
+ */
+export function interpolateLogHz(xs: number[], ys: number[], targetHz: number): number {
+  const n = xs.length;
+  if (n === 0) return 0;
+  if (targetHz <= xs[0]) return ys[0];
+  if (targetHz >= xs[n - 1]) return ys[n - 1];
+
+  let lo = 0;
+  let hi = n - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (xs[mid] <= targetHz) lo = mid;
+    else hi = mid;
   }
-  return out;
+
+  const h0 = xs[lo];
+  const h1 = xs[hi];
+  if (h1 <= h0) return ys[lo];
+  const t = Math.log10(targetHz / h0) / Math.log10(h1 / h0);
+  return ys[lo] + t * (ys[hi] - ys[lo]);
+}
+
+/**
+ * Zero-allocation computation of the mean dB in the 900–1100 Hz reference band.
+ */
+export function computeRefMean(hz: number[], db: number[]): number {
+  let sum = 0;
+  let count = 0;
+  for (let i = 0; i < hz.length; i++) {
+    const f = hz[i];
+    if (f >= 900 && f <= 1100) {
+      sum += db[i];
+      count++;
+    }
+  }
+  return count > 0 ? sum / count : 0;
 }
 
 export type MultiChannelParsedCurve = {
@@ -19,15 +65,17 @@ export type MultiChannelParsedCurve = {
   channel: "L" | "R" | "avg";
   points: FRPoint[];
   normalized: NormalizedCurve;
+  rawChannels?: {
+    left: NormalizedCurve;
+    right: NormalizedCurve;
+  };
 };
+
+export type ParsedChannelCurve = MultiChannelParsedCurve;
 
 export type MultiChannelParseResult =
   | { ok: true; curves: MultiChannelParsedCurve[] }
   | { ok: false; code: ParserErrorCode; message: string };
-
-function makeError(code: ParserErrorCode, message: string): ParseResult {
-  return { ok: false, code, message };
-}
 
 function looksLikeHtml(text: string): boolean {
   const trimmed = text.trimStart().toLowerCase();
@@ -35,19 +83,21 @@ function looksLikeHtml(text: string): boolean {
 }
 
 // Catches JSON error bodies like {"message":"Not Found"} from GitHub, AWS, etc.
-function looksLikeJsonError(text: string): boolean {
+function looksLikeJsonError(text: string): { isError: boolean; message?: string } {
   const trimmed = text.trimStart();
-  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return false;
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return { isError: false };
   try {
     const parsed = JSON.parse(trimmed);
-    // If it's an object with a message/error field and no numeric data it's an error body
     if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-      return "message" in parsed || "error" in parsed || "errors" in parsed;
+      if ("message" in parsed || "error" in parsed || "errors" in parsed) {
+        const msg = (parsed as { message?: string; error?: string }).message ?? (parsed as { error?: string }).error ?? "unknown";
+        return { isError: true, message: String(msg) };
+      }
     }
   } catch {
-    // not valid JSON — not a JSON error body
+    // not valid JSON
   }
-  return false;
+  return { isError: false };
 }
 
 function detectDelimiter(lines: string[]): RegExp {
@@ -66,7 +116,16 @@ function detectColumns(header: string[]): ColMap | null {
   if (freqIdx === -1) return null;
 
   // Prefer value column; then try left+right average
-  let valIdx = lower.findIndex((h, i) => i !== freqIdx && (h.includes("db") || h.includes("spl") || h.includes("raw") || h.includes("ampl") || h.includes("level") || h.includes("mag")));
+  const valIdx = lower.findIndex(
+    (h, i) =>
+      i !== freqIdx &&
+      (h.includes("db") ||
+        h.includes("spl") ||
+        h.includes("raw") ||
+        h.includes("ampl") ||
+        h.includes("level") ||
+        h.includes("mag"))
+  );
 
   if (valIdx !== -1) return { freqIdx, valIdx };
 
@@ -76,14 +135,11 @@ function detectColumns(header: string[]): ColMap | null {
     // encode stereo pair
     return { freqIdx, valIdx: -(leftIdx * 1000 + rightIdx) - 1 };
   }
-  
+
   return { freqIdx, valIdx: freqIdx === 0 ? 1 : 0 };
 }
 
-function parseRow(
-  cells: string[],
-  colMap: ColMap
-): FRPoint | null {
+function parseRow(cells: string[], colMap: ColMap): FRPoint | null {
   const { freqIdx, valIdx } = colMap;
   const hz = parseFloat(cells[freqIdx]);
   if (!isFinite(hz) || hz <= 0) return null;
@@ -92,10 +148,8 @@ function parseRow(
   if (valIdx >= 0) {
     db = parseFloat(cells[valIdx]);
   } else {
-    // decode packed index
     const packed = -valIdx - 1;
     if (packed < 1000) {
-      // single value
       db = parseFloat(cells[packed]);
     } else {
       const leftIdx = Math.floor(packed / 1000);
@@ -110,175 +164,55 @@ function parseRow(
   return { hz, db };
 }
 
-export function parseMeasurementText(raw: string): ParseResult {
-  if (looksLikeHtml(raw)) {
-    return makeError("HTML_RESPONSE", "The URL returned an HTML page, not a measurement file.");
-  }
-  if (looksLikeJsonError(raw)) {
-    let msg: string;
-    try { msg = (JSON.parse(raw.trimStart()) as { message?: string }).message ?? "unknown"; }
-    catch { msg = "unknown"; }
-    return makeError("HTML_RESPONSE", `The server returned an error response: "${msg}". The file may not exist or the URL is incorrect.`);
-  }
-
-  // Normalize
-  const text = raw
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .replace(/^\uFEFF/, "");
-
-  const lines = text
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0 && !l.startsWith("*") && !l.startsWith("#") && !l.startsWith("//"));
-
-  if (lines.length === 0) {
-    return makeError("NO_VALID_ROWS", "The file appears to be empty or contains only comments.");
-  }
-
-  const delim = detectDelimiter(lines);
-
-  // Find the first line that looks like valid numeric data
-  let firstDataIdx = -1;
-  for (let i = 0; i < lines.length; i++) {
-    const cells = lines[i].split(delim).map(s => s.trim());
-    if (cells.length >= 2) {
-      const v0 = parseFloat(cells[0]);
-      const v1 = parseFloat(cells[1]);
-      if (!isNaN(v0) && !isNaN(v1)) {
-        firstDataIdx = i;
-        break;
-      }
+function sortAndDedupeSweep(sweep: FRPoint[]): FRPoint[] {
+  const sorted = [...sweep].sort((a, b) => a.hz - b.hz);
+  const deduped: FRPoint[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const pt = sorted[i];
+    if (deduped.length === 0 || deduped[deduped.length - 1].hz !== pt.hz) {
+      deduped.push(pt);
     }
   }
-
-  if (firstDataIdx === -1) {
-    return makeError("NO_VALID_ROWS", "No numeric frequency/dB rows could be parsed.");
-  }
-
-  let colMap: ColMap = { freqIdx: 0, valIdx: 1 };
-  
-  if (firstDataIdx > 0) {
-    // Check if the line immediately preceding the data is a header
-    const headerCells = lines[firstDataIdx - 1].split(delim).map(s => s.trim());
-    const detected = detectColumns(headerCells);
-    if (detected) {
-      colMap = detected;
-    }
-  }
-
-  const dataLines = lines.slice(firstDataIdx);
-  const points: FRPoint[] = [];
-
-  for (const line of dataLines) {
-    const cells = line.split(delim).map((s) => s.trim());
-    if (cells.length < 2) continue;
-    const pt = parseRow(cells, colMap);
-    if (pt) points.push(pt);
-  }
-
-  if (points.length === 0) {
-    return makeError("NO_VALID_ROWS", "No numeric frequency/dB rows could be parsed.");
-  }
-  if (points.length < MIN_POINTS) {
-    return makeError("TOO_FEW_POINTS", `Only ${points.length} valid data points found (minimum ${MIN_POINTS}).`);
-  }
-
-  // Split into sweeps to handle files with appended Left/Right channels (prevents jagged lines)
-  // A new sweep starts whenever frequency drops or encounters a duplicate X value.
-  const sweeps: FRPoint[][] = [];
-  let currentSweep: FRPoint[] = [];
-  let lastHz = -1;
-
-  for (const pt of points) {
-    if (pt.hz <= lastHz) {
-      if (currentSweep.length > 0) {
-        sweeps.push(currentSweep);
-      }
-      currentSweep = [];
-    }
-    currentSweep.push(pt);
-    lastHz = pt.hz;
-  }
-  if (currentSweep.length > 0) sweeps.push(currentSweep);
-
-  // Filter out glitched sweeps (e.g., single duplicate points causing vertical lines)
-  const validSweeps = sweeps.filter((s) => s.length >= MIN_POINTS);
-
-  if (validSweeps.length === 0) {
-    return makeError("TOO_FEW_POINTS", `No valid sweep found with at least ${MIN_POINTS} points.`);
-  }
-
-  // Normalize each valid sweep and average them
-  const grid = buildLogGrid();
-  const sumDb = new Array(grid.length).fill(0);
-
-  for (const sweep of validSweeps) {
-    sweep.sort((a, b) => a.hz - b.hz);
-    const deduped: FRPoint[] = [];
-    for (const pt of sweep) {
-      if (deduped.length === 0 || deduped[deduped.length - 1].hz !== pt.hz) {
-        deduped.push(pt);
-      }
-    }
-    const norm = normalizeCurve(deduped);
-    for (let i = 0; i < grid.length; i++) {
-      sumDb[i] += norm.db[i];
-    }
-  }
-
-  const avgDb = sumDb.map((val) => val / validSweeps.length);
-  const normalized: NormalizedCurve = { hz: grid, db: avgDb };
-
-  // For raw points, return the first sweep's deduped points
-  const firstSweep = validSweeps[0];
-  firstSweep.sort((a, b) => a.hz - b.hz);
-  const finalPoints: FRPoint[] = [];
-  for (const pt of firstSweep) {
-    if (finalPoints.length === 0 || finalPoints[finalPoints.length - 1].hz !== pt.hz) {
-      finalPoints.push(pt);
-    }
-  }
-
-  return { ok: true, points: finalPoints, normalized };
+  return deduped;
 }
 
-function normalizeCurve(points: FRPoint[]): import("@/types/audio").NormalizedCurve {
-  const grid = buildLogGrid();
-  const srcHz = points.map((p) => p.hz);
-  const srcDb = points.map((p) => p.db);
-  const db = grid.map((hz) => linearInterpolate(srcHz, srcDb, hz));
+function normalizeCurve(points: FRPoint[]): NormalizedCurve {
+  const grid = STATIC_LOG_GRID;
+  const srcHz = new Array<number>(points.length);
+  const srcDb = new Array<number>(points.length);
+  for (let i = 0; i < points.length; i++) {
+    srcHz[i] = points[i].hz;
+    srcDb[i] = points[i].db;
+  }
+  const db = grid.map((hz) => interpolateLogHz(srcHz, srcDb, hz));
   return { hz: grid, db };
 }
 
-function linearInterpolate(xs: number[], ys: number[], x: number): number {
-  if (x <= xs[0]) return ys[0];
-  if (x >= xs[xs.length - 1]) return ys[ys.length - 1];
-  let lo = 0;
-  let hi = xs.length - 1;
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1;
-    if (xs[mid] <= x) lo = mid;
-    else hi = mid;
-  }
-  const t = (x - xs[lo]) / (xs[hi] - xs[lo]);
-  return ys[lo] + t * (ys[hi] - ys[lo]);
-}
-
-export type ParsedChannelCurve = {
-  labelSuffix: string;
-  channel: "L" | "R" | "avg";
-  points: FRPoint[];
-  normalized: NormalizedCurve;
-};
-
-
+/**
+ * Single-pass measurement text parser supporting both mono/averaged and multi-channel extraction.
+ */
 export function parseMeasurementTextMultiChannel(
   raw: string,
   options?: { channelMode?: "separate" | "avg" }
 ): MultiChannelParseResult {
-  const baseResult = parseMeasurementText(raw);
-  if (!baseResult.ok) return baseResult;
+  if (raw.includes("\0")) {
+    return {
+      ok: false,
+      code: "UNSUPPORTED_BINARY_CONTENT",
+      message: PARSER_ERROR_MESSAGES.UNSUPPORTED_BINARY_CONTENT,
+    };
+  }
+  if (looksLikeHtml(raw)) {
+    return { ok: false, code: "HTML_RESPONSE", message: PARSER_ERROR_MESSAGES.HTML_RESPONSE };
+  }
+  const jsonCheck = looksLikeJsonError(raw);
+  if (jsonCheck.isError) {
+    return {
+      ok: false,
+      code: "HTML_RESPONSE",
+      message: `The server returned an error response: "${jsonCheck.message}". The file may not exist or the URL is incorrect.`,
+    };
+  }
 
   const mode = options?.channelMode ?? "separate";
 
@@ -292,91 +226,117 @@ export function parseMeasurementTextMultiChannel(
     .map((l) => l.trim())
     .filter((l) => l.length > 0 && !l.startsWith("*") && !l.startsWith("#") && !l.startsWith("//"));
 
+  if (lines.length === 0) {
+    return { ok: false, code: "NO_VALID_ROWS", message: PARSER_ERROR_MESSAGES.NO_VALID_ROWS };
+  }
+
   const delim = detectDelimiter(lines);
+
+  // Split all lines once and find the first line that looks like valid numeric data
+  const tokenizedLines: string[][] = new Array(lines.length);
   let firstDataIdx = -1;
   for (let i = 0; i < lines.length; i++) {
-    const cells = lines[i].split(delim).map(s => s.trim());
-    if (cells.length >= 2) {
+    const cells = lines[i].split(delim).map((s) => s.trim());
+    tokenizedLines[i] = cells;
+    if (firstDataIdx === -1 && cells.length >= 2) {
       const v0 = parseFloat(cells[0]);
       const v1 = parseFloat(cells[1]);
       if (!isNaN(v0) && !isNaN(v1)) {
         firstDataIdx = i;
-        break;
       }
     }
   }
 
   if (firstDataIdx === -1) {
-    return { ok: true, curves: [{ labelSuffix: "", channel: "avg", points: baseResult.points, normalized: baseResult.normalized }] };
+    return { ok: false, code: "NO_VALID_ROWS", message: PARSER_ERROR_MESSAGES.NO_VALID_ROWS };
   }
 
   let colMap: ColMap = { freqIdx: 0, valIdx: 1 };
   if (firstDataIdx > 0) {
-    const headerCells = lines[firstDataIdx - 1].split(delim).map(s => s.trim());
-    const detected = detectColumns(headerCells);
+    const detected = detectColumns(tokenizedLines[firstDataIdx - 1]);
     if (detected) colMap = detected;
   }
 
-  // Check if header had stereo columns
+  // Case 1: Explicit Stereo L/R Columns in Header
   if (colMap.valIdx < -1) {
     const packed = -colMap.valIdx - 1;
     if (packed >= 1000) {
       const leftIdx = Math.floor(packed / 1000);
       const rightIdx = packed % 1000;
+      const maxIdx = Math.max(leftIdx, rightIdx, colMap.freqIdx);
 
-      const dataLines = lines.slice(firstDataIdx);
       const pointsL: FRPoint[] = [];
       const pointsR: FRPoint[] = [];
 
-      for (const line of dataLines) {
-        const cells = line.split(delim).map(s => s.trim());
-        if (cells.length <= Math.max(leftIdx, rightIdx)) continue;
+      for (let i = firstDataIdx; i < tokenizedLines.length; i++) {
+        const cells = tokenizedLines[i];
+        if (cells.length <= maxIdx) continue;
         const hz = parseFloat(cells[colMap.freqIdx]);
+        if (!isFinite(hz) || hz <= 0) continue;
         const l = parseFloat(cells[leftIdx]);
         const r = parseFloat(cells[rightIdx]);
-        if (isFinite(hz) && hz > 0) {
-          if (isFinite(l)) pointsL.push({ hz, db: l });
-          if (isFinite(r)) pointsR.push({ hz, db: r });
-        }
+        if (isFinite(l)) pointsL.push({ hz, db: l });
+        if (isFinite(r)) pointsR.push({ hz, db: r });
       }
 
       if (pointsL.length >= MIN_POINTS && pointsR.length >= MIN_POINTS) {
-        pointsL.sort((a, b) => a.hz - b.hz);
-        pointsR.sort((a, b) => a.hz - b.hz);
-        const normL = normalizeCurve(pointsL);
-        const normR = normalizeCurve(pointsR);
+        const dedupedL = sortAndDedupeSweep(pointsL);
+        const dedupedR = sortAndDedupeSweep(pointsR);
+        const normL = normalizeCurve(dedupedL);
+        const normR = normalizeCurve(dedupedR);
+        const rawChannels = { left: normL, right: normR };
 
         if (mode === "avg") {
-          const grid = buildLogGrid();
+          const grid = STATIC_LOG_GRID;
           const avgDb = grid.map((_, i) => (normL.db[i] + normR.db[i]) / 2);
-          return { ok: true, curves: [{ labelSuffix: "", channel: "avg", points: pointsL, normalized: { hz: grid, db: avgDb } }] };
+          return {
+            ok: true,
+            curves: [
+              {
+                labelSuffix: "",
+                channel: "avg",
+                points: dedupedL,
+                normalized: { hz: grid, db: avgDb },
+                rawChannels,
+              },
+            ],
+          };
         }
 
         return {
           ok: true,
           curves: [
-            { labelSuffix: " (L)", channel: "L", points: pointsL, normalized: normL },
-            { labelSuffix: " (R)", channel: "R", points: pointsR, normalized: normR },
+            { labelSuffix: " (L)", channel: "L", points: dedupedL, normalized: normL, rawChannels },
+            { labelSuffix: " (R)", channel: "R", points: dedupedR, normalized: normR, rawChannels },
           ],
         };
       }
     }
   }
 
-  // Check for multi-sweep (Sweep 0 = L, Sweep 1 = R)
-  const dataLines = lines.slice(firstDataIdx);
-  const rawPoints: FRPoint[] = [];
-  for (const line of dataLines) {
-    const cells = line.split(delim).map((s) => s.trim());
+  // Case 2: Standard Single-Column or Multi-Sweep Data
+  const points: FRPoint[] = [];
+  for (let i = firstDataIdx; i < tokenizedLines.length; i++) {
+    const cells = tokenizedLines[i];
     if (cells.length < 2) continue;
     const pt = parseRow(cells, colMap);
-    if (pt) rawPoints.push(pt);
+    if (pt) points.push(pt);
   }
 
+  if (points.length === 0) {
+    return { ok: false, code: "NO_VALID_ROWS", message: PARSER_ERROR_MESSAGES.NO_VALID_ROWS };
+  }
+  if (points.length < MIN_POINTS) {
+    return { ok: false, code: "TOO_FEW_POINTS", message: PARSER_ERROR_MESSAGES.TOO_FEW_POINTS };
+  }
+
+  // Split into sweeps whenever frequency drops or repeats
   const sweeps: FRPoint[][] = [];
   let currentSweep: FRPoint[] = [];
   let lastHz = -1;
-  for (const pt of rawPoints) {
+
+  for (let i = 0; i < points.length; i++) {
+    const pt = points[i];
     if (pt.hz <= lastHz) {
       if (currentSweep.length > 0) sweeps.push(currentSweep);
       currentSweep = [];
@@ -386,25 +346,80 @@ export function parseMeasurementTextMultiChannel(
   }
   if (currentSweep.length > 0) sweeps.push(currentSweep);
 
-  const validSweeps = sweeps.filter(s => s.length >= MIN_POINTS);
+  const validSweeps = sweeps.filter((s) => s.length >= MIN_POINTS);
+  if (validSweeps.length === 0) {
+    return { ok: false, code: "TOO_FEW_POINTS", message: PARSER_ERROR_MESSAGES.TOO_FEW_POINTS };
+  }
 
-  if (mode !== "avg" && validSweeps.length === 2) {
-    const sweepL = validSweeps[0].sort((a, b) => a.hz - b.hz);
-    const sweepR = validSweeps[1].sort((a, b) => a.hz - b.hz);
-    const normL = normalizeCurve(sweepL);
-    const normR = normalizeCurve(sweepR);
+  // If exactly 2 valid sweeps (Sweep 0 = Left, Sweep 1 = Right), preserve rawChannels for both modes
+  if (validSweeps.length === 2) {
+    const dedupedL = sortAndDedupeSweep(validSweeps[0]);
+    const dedupedR = sortAndDedupeSweep(validSweeps[1]);
+    const normL = normalizeCurve(dedupedL);
+    const normR = normalizeCurve(dedupedR);
+    const rawChannels = { left: normL, right: normR };
 
+    if (mode !== "avg") {
+      return {
+        ok: true,
+        curves: [
+          { labelSuffix: " (L)", channel: "L", points: dedupedL, normalized: normL, rawChannels },
+          { labelSuffix: " (R)", channel: "R", points: dedupedR, normalized: normR, rawChannels },
+        ],
+      };
+    }
+
+    const grid = STATIC_LOG_GRID;
+    const avgDb = grid.map((_, i) => (normL.db[i] + normR.db[i]) / 2);
     return {
       ok: true,
       curves: [
-        { labelSuffix: " (L)", channel: "L", points: sweepL, normalized: normL },
-        { labelSuffix: " (R)", channel: "R", points: sweepR, normalized: normR },
+        {
+          labelSuffix: "",
+          channel: "avg",
+          points: dedupedL,
+          normalized: { hz: grid, db: avgDb },
+          rawChannels,
+        },
       ],
     };
   }
 
+  // Average all valid sweeps onto the shared log grid
+  const grid = STATIC_LOG_GRID;
+  const sumDb = new Array<number>(grid.length).fill(0);
+  let firstDeduped: FRPoint[] = [];
+
+  for (let s = 0; s < validSweeps.length; s++) {
+    const deduped = sortAndDedupeSweep(validSweeps[s]);
+    if (s === 0) firstDeduped = deduped;
+    const norm = normalizeCurve(deduped);
+    for (let i = 0; i < grid.length; i++) {
+      sumDb[i] += norm.db[i];
+    }
+  }
+
+  const avgDb = sumDb.map((val) => val / validSweeps.length);
   return {
     ok: true,
-    curves: [{ labelSuffix: "", channel: "avg", points: baseResult.points, normalized: baseResult.normalized }],
+    curves: [
+      {
+        labelSuffix: "",
+        channel: "avg",
+        points: firstDeduped,
+        normalized: { hz: grid, db: avgDb },
+      },
+    ],
+  };
+}
+
+export function parseMeasurementText(raw: string): ParseResult {
+  const res = parseMeasurementTextMultiChannel(raw, { channelMode: "avg" });
+  if (!res.ok) return res;
+  const first = res.curves[0];
+  return {
+    ok: true,
+    points: first.points,
+    normalized: first.normalized,
   };
 }

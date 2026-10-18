@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import type { Trace } from "@/types/audio";
 import { getTraceSourceLabel } from "@/lib/sourceUtils";
 
@@ -12,14 +12,32 @@ interface Props {
   onToggleChannelMode?: (id: string) => void;
 }
 
-export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelChange, onNoteChange, onToggleChannelMode }: Props) {
+export const TraceItem = React.memo(function TraceItem({
+  trace,
+  onToggle,
+  onRemove,
+  onColorChange,
+  onLabelChange,
+  onNoteChange,
+  onToggleChannelMode,
+}: Props) {
   const [showNotes, setShowNotes] = useState(!!trace.notes);
   const [localColor, setLocalColor] = useState(trace.color);
+  const [localLabel, setLocalLabel] = useState(trace.label);
+  const [localNotes, setLocalNotes] = useState(trace.notes || "");
   const sourceLabel = getTraceSourceLabel(trace);
 
   useEffect(() => {
     setLocalColor(trace.color);
   }, [trace.color]);
+
+  useEffect(() => {
+    setLocalLabel(trace.label);
+  }, [trace.label]);
+
+  useEffect(() => {
+    setLocalNotes(trace.notes || "");
+  }, [trace.notes]);
 
   useEffect(() => {
     if (localColor !== trace.color) {
@@ -30,13 +48,47 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
     }
   }, [localColor, trace.color, trace.id, onColorChange]);
 
-  const isToggleable = !!trace.rawChannels || trace.source?.kind === "squiglink-share-url" || trace.source?.kind === "hangout-graph-url";
+  useEffect(() => {
+    if (localLabel !== trace.label) {
+      const timer = setTimeout(() => {
+        onLabelChange(trace.id, localLabel);
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [localLabel, trace.label, trace.id, onLabelChange]);
+
+  useEffect(() => {
+    const currentNotes = trace.notes || "";
+    if (localNotes !== currentNotes) {
+      const timer = setTimeout(() => {
+        onNoteChange(trace.id, localNotes);
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [localNotes, trace.notes, trace.id, onNoteChange]);
+
+  const isToggleable =
+    !!trace.rawChannels ||
+    trace.source?.kind === "squiglink-share-url" ||
+    trace.source?.kind === "hangout-graph-url";
 
   return (
     <div className="flex flex-col gap-1.5 p-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--border-glow)] transition-all duration-150 group shadow-sm">
       <div className="flex items-center gap-2">
-        <div className="cursor-grab text-[var(--text-muted)] opacity-40 group-hover:opacity-100 flex-shrink-0 transition-opacity" title="Drag to reorder">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <div
+          className="cursor-grab text-[var(--text-muted)] opacity-40 group-hover:opacity-100 flex-shrink-0 transition-opacity"
+          title="Drag to reorder"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <circle cx="9" cy="6" r="1.5" fill="currentColor"></circle>
             <circle cx="15" cy="6" r="1.5" fill="currentColor"></circle>
             <circle cx="9" cy="12" r="1.5" fill="currentColor"></circle>
@@ -64,7 +116,7 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
             title="Change color"
             aria-label={`Change color for ${trace.label}`}
           />
-          <div 
+          <div
             className="w-4 h-4 rounded-full border border-white/20 transition-transform group-hover/color:scale-110 shadow-sm"
             style={{ backgroundColor: localColor, boxShadow: `0 0 8px ${localColor}66` }}
           />
@@ -84,8 +136,13 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
         <div className="flex-1 min-w-0 flex flex-col justify-center">
           <input
             type="text"
-            value={trace.label}
-            onChange={(e) => onLabelChange(trace.id, e.target.value)}
+            value={localLabel}
+            onChange={(e) => setLocalLabel(e.target.value)}
+            onBlur={() => {
+              if (localLabel !== trace.label) {
+                onLabelChange(trace.id, localLabel);
+              }
+            }}
             className="w-full bg-transparent text-xs text-[var(--text-primary)] outline-none truncate font-semibold focus:text-white"
             aria-label="Trace label"
           />
@@ -100,7 +157,11 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
           <button
             onClick={() => onToggleChannelMode?.(trace.id)}
             className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/25 hover:bg-indigo-500/25 shrink-0 transition-colors"
-            title={trace.channel === "L" || trace.channel === "R" ? "Combine L & R into Average trace" : "Split into Left & Right channel traces"}
+            title={
+              trace.channel === "L" || trace.channel === "R"
+                ? "Combine L & R into Average trace"
+                : "Split into Left & Right channel traces"
+            }
           >
             {trace.channel === "L" || trace.channel === "R" ? "L/R → Avg" : "Avg → L/R"}
           </button>
@@ -108,11 +169,22 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
 
         <button
           onClick={() => setShowNotes(!showNotes)}
-          className={`text-[var(--text-muted)] hover:text-indigo-400 flex-shrink-0 transition-colors p-1 ${showNotes ? "text-indigo-400" : ""}`}
+          className={`text-[var(--text-muted)] hover:text-indigo-400 flex-shrink-0 transition-colors p-1 ${
+            showNotes ? "text-indigo-400" : ""
+          }`}
           title="Toggle notes"
           aria-label={`Toggle notes for ${trace.label}`}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M12 20h9"></path>
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
           </svg>
@@ -124,7 +196,16 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
           title="Remove trace"
           aria-label={`Remove ${trace.label}`}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
@@ -136,8 +217,13 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
           <input
             type="text"
             placeholder="Add trace notes (mod, ear tips, measurement rig)..."
-            value={trace.notes || ""}
-            onChange={(e) => onNoteChange(trace.id, e.target.value)}
+            value={localNotes}
+            onChange={(e) => setLocalNotes(e.target.value)}
+            onBlur={() => {
+              if (localNotes !== (trace.notes || "")) {
+                onNoteChange(trace.id, localNotes);
+              }
+            }}
             className="input-field text-xs py-1 px-2"
             aria-label={`Notes for ${trace.label}`}
           />
@@ -145,7 +231,7 @@ export function TraceItem({ trace, onToggle, onRemove, onColorChange, onLabelCha
       )}
     </div>
   );
-}
+});
 
 interface ListProps {
   traces: Trace[];
@@ -158,7 +244,16 @@ interface ListProps {
   onToggleChannelMode?: (id: string) => void;
 }
 
-export function TraceList({ traces, onToggle, onRemove, onColorChange, onLabelChange, onNoteChange, onReorder, onToggleChannelMode }: ListProps) {
+export const TraceList = React.memo(function TraceList({
+  traces,
+  onToggle,
+  onRemove,
+  onColorChange,
+  onLabelChange,
+  onNoteChange,
+  onReorder,
+  onToggleChannelMode,
+}: ListProps) {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
@@ -184,7 +279,6 @@ export function TraceList({ traces, onToggle, onRemove, onColorChange, onLabelCh
             draggable
             onDragStart={(e) => {
               setDraggedIdx(index);
-              // Required for Firefox
               if (e.dataTransfer) {
                 e.dataTransfer.effectAllowed = "move";
                 e.dataTransfer.setData("text/plain", t.id);
@@ -212,8 +306,10 @@ export function TraceList({ traces, onToggle, onRemove, onColorChange, onLabelCh
             style={{
               opacity: isDragging ? 0.4 : 1,
               transform: "translate3d(0,0,0)",
-              borderTop: isDragOver && insertAbove ? "2px solid var(--accent)" : "2px solid transparent",
-              borderBottom: isDragOver && !insertAbove ? "2px solid var(--accent)" : "2px solid transparent",
+              borderTop:
+                isDragOver && insertAbove ? "2px solid var(--accent)" : "2px solid transparent",
+              borderBottom:
+                isDragOver && !insertAbove ? "2px solid var(--accent)" : "2px solid transparent",
               marginTop: isDragOver && insertAbove ? "-2px" : "0",
               marginBottom: isDragOver && !insertAbove ? "-2px" : "0",
             }}
@@ -233,4 +329,4 @@ export function TraceList({ traces, onToggle, onRemove, onColorChange, onLabelCh
       })}
     </div>
   );
-}
+});
