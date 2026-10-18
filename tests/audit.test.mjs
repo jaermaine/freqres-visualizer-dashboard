@@ -164,7 +164,7 @@ test("parseMeasurementFile rejects HTML and binary payloads with standardized er
 test("targets caches 201-point target grid projections and preserves all target curves", () => {
   const { TUNING_TARGETS, getTargetGridDb } = targets;
 
-  assert.equal(TUNING_TARGETS.length, 5);
+  assert.equal(TUNING_TARGETS.length, 6);
   for (const target of TUNING_TARGETS) {
     assert.equal(target.hz.length, target.db.length, `${target.label} hz and db lengths should match`);
     assert.ok(target.hz.length >= 150, `${target.label} should have valid points`);
