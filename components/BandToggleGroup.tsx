@@ -30,7 +30,7 @@ export const BandToggleGroup = React.memo(function BandToggleGroup({
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5">
       {BAND_CATEGORIES.map((cat) => {
         const bands = PARAMETER_BANDS.filter((b) => b.category === cat.id);
         const isOpen = openCats.has(cat.id);
@@ -39,48 +39,54 @@ export const BandToggleGroup = React.memo(function BandToggleGroup({
         return (
           <div key={cat.id} className="panel flex flex-col overflow-hidden">
             <div
-              className="px-3 py-2 flex justify-between items-center cursor-pointer transition-colors"
-              style={{ background: isOpen ? "var(--bg-hover)" : "transparent" }}
-              onClick={() => toggleCat(cat.id)}
+              className="px-2.5 py-1.5 flex justify-between items-center transition-colors"
+              style={{ background: isOpen ? "var(--bg-raised)" : "transparent" }}
             >
-              <div className="flex items-center gap-2">
-                <p className="label-xs mb-0 m-0 leading-none">
-                  {cat.label}{" "}
-                  {activeCount > 0 && <span className="text-indigo-400">({activeCount})</span>}
-                </p>
-                {activeCount > 0 && onClearCategory && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onClearCategory(cat.id);
-                    }}
-                    className="text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-              <span
-                className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                style={{ color: "var(--text-muted)" }}
+              <button
+                type="button"
+                onClick={() => toggleCat(cat.id)}
+                aria-expanded={isOpen}
+                className="flex items-center gap-2 flex-1 text-left py-0.5"
               >
                 <svg
-                  width="12"
-                  height="12"
+                  width="11"
+                  height="11"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2.5"
+                  strokeWidth="2.4"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  className={`transition-transform duration-150 text-[var(--text-muted)] ${
+                    isOpen ? "rotate-180" : ""
+                  }`}
                 >
-                  <polyline points="6 9 12 15 18 9"></polyline>
+                  <polyline points="6 9 12 15 18 9" />
                 </svg>
-              </span>
+                <span className="label-xs leading-none">
+                  {cat.label}
+                </span>
+                {activeCount > 0 && (
+                  <span className="font-mono text-[10px] font-semibold text-[var(--accent-text)] tabular-nums">
+                    ({activeCount})
+                  </span>
+                )}
+              </button>
+
+              {activeCount > 0 && onClearCategory && (
+                <button
+                  type="button"
+                  onClick={() => onClearCategory(cat.id)}
+                  className="text-[10px] font-mono text-[var(--accent-text)] hover:opacity-80 transition-opacity px-1 py-0.5"
+                >
+                  Clear
+                </button>
+              )}
             </div>
+
             {isOpen && (
               <div
-                className="px-2 py-2 flex flex-col gap-0.5"
+                className="px-2 py-1.5 flex flex-col gap-0.5"
                 style={{ borderTop: "1px solid var(--border-subtle)" }}
               >
                 {bands.map((band) => {
@@ -88,26 +94,30 @@ export const BandToggleGroup = React.memo(function BandToggleGroup({
                   return (
                     <label
                       key={band.id}
-                      className="flex items-center gap-2 cursor-pointer py-1 px-1 rounded hover:bg-[var(--bg-hover)] select-none"
-                      onMouseEnter={() => onHover?.(band.id)}
-                      onMouseLeave={() => onHover?.(null)}
+                      className={`flex items-center gap-2 py-1 px-1.5 rounded-sm select-none transition-colors ${
+                        disabled
+                          ? "opacity-50 cursor-not-allowed"
+                          : "cursor-pointer hover:bg-[var(--bg-hover)]"
+                      }`}
+                      onMouseEnter={() => !disabled && onHover?.(band.id)}
+                      onMouseLeave={() => !disabled && onHover?.(null)}
                     >
                       <input
                         type="checkbox"
                         checked={on}
                         onChange={() => onToggle(band.id)}
                         disabled={disabled}
-                        className="w-3.5 h-3.5 accent-indigo-500 disabled:cursor-not-allowed"
+                        className="w-3.5 h-3.5 rounded-sm accent-[var(--accent)] disabled:cursor-not-allowed"
                         id={`band-${band.id}`}
                       />
                       <span
-                        className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
-                        style={{ background: band.color.replace(/[\d.]+\)$/, "0.8)") }}
+                        className="w-2.5 h-2.5 rounded-xs flex-shrink-0 border border-black/20"
+                        style={{ background: band.color.replace(/[\d.]+\)$/, "0.85)") }}
                       />
-                      <span className="text-sm flex-1" style={{ color: "var(--text-primary)" }}>
+                      <span className="text-xs flex-1 text-[var(--text-primary)]">
                         {band.label}
                       </span>
-                      <span className="label-xs" style={{ fontSize: "10px" }}>
+                      <span className="font-mono text-[10px] text-[var(--text-muted)] tabular-nums">
                         {band.freqLow >= 1000 ? `${band.freqLow / 1000}k` : band.freqLow}–
                         {band.freqHigh >= 1000 ? `${band.freqHigh / 1000}k` : band.freqHigh}
                       </span>

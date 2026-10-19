@@ -36,6 +36,19 @@ export function ExportStudioModal({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
 
+  useEffect(() => {
+    setExportTheme(currentTheme);
+  }, [currentTheme]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   const visibleTraces = traces.filter((t) => t.visible);
   const reviewers = Array.from(new Set(visibleTraces.map(getReviewerName).filter(Boolean)));
 
@@ -75,60 +88,96 @@ export function ExportStudioModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
-        className={`w-full max-w-2xl rounded-xl border shadow-2xl p-6 transition-all max-h-[90vh] flex flex-col ${
-          currentTheme === "light"
-            ? "bg-white border-slate-200 text-slate-900"
-            : "bg-[#151923] border-slate-800 text-slate-100"
-        }`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="export-studio-title"
+        className="w-full max-w-2xl rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-2xl p-5 max-h-[90vh] flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-[var(--border-subtle)] shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                <polyline points="21 15 16 10 5 21"></polyline>
+        <div className="flex items-center justify-between pb-3.5 border-b border-[var(--border-subtle)] shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded bg-[var(--accent-dim)] border border-[var(--accent-border)] text-[var(--accent-text)] flex items-center justify-center">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
               </svg>
             </div>
             <div>
-              <h2 className="text-base font-semibold">PNG Export Studio</h2>
+              <h2 id="export-studio-title" className="text-sm font-semibold">
+                PNG Export Studio
+              </h2>
               <p className="text-xs text-[var(--text-muted)]">
-                Live preview, aspect ratios, theme modes & reviewer credits
+                High-resolution plot rendering with aspect presets & source attribution
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 transition-colors text-lg"
+            aria-label="Close PNG Export Studio"
+            className="inline-flex items-center justify-center w-8 h-8 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
           >
-            ✕
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
 
         {/* Content Body (2 Columns on MD+) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4 overflow-y-auto pr-1 custom-scrollbar">
           {/* Left Column: Live Preview Window */}
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-[var(--text-secondary)]">
-              Live Graphic Preview
-            </label>
+            <span className="label-xs">Live Render Preview</span>
             <div
-              className={`w-full rounded-lg border overflow-hidden flex items-center justify-center min-h-[220px] max-h-[300px] relative transition-colors ${
+              className={`w-full rounded border overflow-hidden flex items-center justify-center min-h-[220px] max-h-[300px] relative transition-colors ${
                 exportTheme === "light"
-                  ? "bg-white border-slate-300"
-                  : "bg-[#0d0f14] border-slate-800"
+                  ? "bg-white border-[#d4d4cc]"
+                  : "bg-[#0b0c0e] border-[#262a34]"
               }`}
             >
               {isGeneratingPreview && (
-                <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px] flex items-center justify-center z-10">
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-slate-900/90 text-xs text-slate-200 shadow">
-                    <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-xs font-mono text-[var(--text-primary)] shadow">
+                    <svg
+                      className="animate-spin"
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                     </svg>
-                    Updating Preview...
+                    Rendering...
                   </div>
                 </div>
               )}
@@ -136,19 +185,20 @@ export function ExportStudioModal({
               {previewUrl ? (
                 <img
                   src={previewUrl}
-                  alt="Export Preview"
-                  className="max-w-full max-h-full object-contain shadow-sm"
+                  alt="Frequency response export preview"
+                  className="max-w-full max-h-full object-contain"
                 />
               ) : (
-                <div className="text-xs text-[var(--text-muted)] p-4 text-center">
+                <div className="text-xs font-mono text-[var(--text-muted)] p-4 text-center">
                   {visibleTraces.length === 0
                     ? "No visible traces loaded"
-                    : "Generating live preview..."}
+                    : "Generating preview..."}
                 </div>
               )}
             </div>
-            <p className="text-[11px] text-[var(--text-muted)] text-center">
-              Rendered in <span className="font-semibold">{exportTheme === "dark" ? "Dark Mode" : "Light Mode"}</span> ({aspectRatio})
+            <p className="text-[11px] font-mono text-[var(--text-muted)] text-center">
+              Canvas: {exportTheme === "dark" ? "Anodized Carbon (Dark)" : "Paper Stone (Light)"} ·{" "}
+              {aspectRatio}
             </p>
           </div>
 
@@ -156,59 +206,94 @@ export function ExportStudioModal({
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {/* Aspect Ratio Selector */}
             <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)] block mb-1.5">
-                Aspect Ratio Preset
-              </label>
+              <span className="label-xs block mb-1.5">Aspect Ratio Preset</span>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: "16:9", label: "16:9", desc: "YouTube / Web" },
-                  { id: "1:1", label: "1:1", desc: "Social Media" },
+                  { id: "1:1", label: "1:1", desc: "Square Post" },
                   { id: "4:3", label: "4:3", desc: "Forum Embed" },
-                ].map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => setAspectRatio(preset.id as any)}
-                    className={`flex flex-col items-center justify-center p-2 rounded-lg border text-xs transition-colors ${
-                      aspectRatio === preset.id
-                        ? "border-indigo-500 bg-indigo-500/10 text-indigo-400 font-semibold"
-                        : currentTheme === "light"
-                        ? "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
-                        : "border-slate-800 bg-slate-900/50 hover:bg-slate-800 text-slate-300"
-                    }`}
-                  >
-                    <span className="text-sm font-bold">{preset.label}</span>
-                    <span className="text-[10px] opacity-70 mt-0.5">{preset.desc}</span>
-                  </button>
-                ))}
+                ].map((preset) => {
+                  const active = aspectRatio === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setAspectRatio(preset.id as any)}
+                      aria-pressed={active}
+                      className={`flex flex-col items-center justify-center p-2 rounded border text-xs transition-colors ${
+                        active
+                          ? "border-[var(--accent)] bg-[var(--accent-dim)] text-[var(--accent-text)] font-semibold"
+                          : "border-[var(--border)] bg-[var(--bg-raised)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]"
+                      }`}
+                    >
+                      <span className="text-xs font-mono font-bold">{preset.label}</span>
+                      <span className="text-[10px] opacity-75 mt-0.5">{preset.desc}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             {/* Theme Style Toggle */}
             <div>
-              <label className="text-xs font-medium text-[var(--text-secondary)] block mb-1.5">
-                Export Theme Style
-              </label>
+              <span className="label-xs block mb-1.5">Canvas Background</span>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { id: "dark", label: "🌙 Dark Mode" },
-                  { id: "light", label: "☀️ Light Mode" },
-                ].map((style) => (
-                  <button
-                    key={style.id}
-                    type="button"
-                    onClick={() => setExportTheme(style.id as any)}
-                    className={`py-2 px-3 rounded-lg border text-xs font-medium transition-colors ${
-                      exportTheme === style.id
-                        ? "border-indigo-500 bg-indigo-500/10 text-indigo-400 font-semibold"
-                        : currentTheme === "light"
-                        ? "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
-                        : "border-slate-800 bg-slate-900/50 hover:bg-slate-800 text-slate-300"
-                    }`}
-                  >
-                    {style.label}
-                  </button>
-                ))}
+                  { id: "dark", label: "Dark Carbon" },
+                  { id: "light", label: "Light Stone" },
+                ].map((style) => {
+                  const active = exportTheme === style.id;
+                  return (
+                    <button
+                      key={style.id}
+                      type="button"
+                      onClick={() => setExportTheme(style.id as any)}
+                      aria-pressed={active}
+                      className={`py-2 px-3 rounded border text-xs font-medium inline-flex items-center justify-center gap-2 transition-colors ${
+                        active
+                          ? "border-[var(--accent)] bg-[var(--accent-dim)] text-[var(--accent-text)] font-semibold"
+                          : "border-[var(--border)] bg-[var(--bg-raised)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]"
+                      }`}
+                    >
+                      {style.id === "dark" ? (
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                        </svg>
+                      ) : (
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <circle cx="12" cy="12" r="5" />
+                          <line x1="12" y1="1" x2="12" y2="3" />
+                          <line x1="12" y1="21" x2="12" y2="23" />
+                          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                          <line x1="1" y1="12" x2="3" y2="12" />
+                          <line x1="21" y1="12" x2="23" y2="12" />
+                          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                        </svg>
+                      )}
+                      {style.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -220,10 +305,16 @@ export function ExportStudioModal({
                   id="include-source-credit"
                   checked={includeSourceCredit}
                   onChange={(e) => setIncludeSourceCredit(e.target.checked)}
-                  className="w-4 h-4 mt-0.5 accent-indigo-500 rounded cursor-pointer"
+                  className="w-4 h-4 mt-0.5 accent-[var(--accent)] rounded-sm cursor-pointer"
                 />
-                <label htmlFor="include-source-credit" className="text-xs text-[var(--text-secondary)] cursor-pointer select-none leading-relaxed">
-                  Include Reviewer Credit: <span className="font-semibold text-indigo-400 block">{reviewers.join(", ")}</span>
+                <label
+                  htmlFor="include-source-credit"
+                  className="text-xs text-[var(--text-secondary)] cursor-pointer select-none leading-relaxed"
+                >
+                  Embed Reviewer Attribution:{" "}
+                  <span className="font-mono font-semibold text-[var(--accent-text)] block">
+                    {reviewers.join(", ")}
+                  </span>
                 </label>
               </div>
             )}
@@ -233,25 +324,47 @@ export function ExportStudioModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-lg text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                className="btn-ghost px-3.5 py-1.5 text-xs"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isExporting || visibleTraces.length === 0}
-                className="btn-primary px-5 py-2 text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50"
+                className="btn-primary px-4 py-1.5 text-xs font-semibold inline-flex items-center gap-1.5"
               >
                 {isExporting ? (
                   <>
-                    <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                    <svg
+                      className="animate-spin"
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                     </svg>
                     Exporting...
                   </>
                 ) : (
                   <>
-                    <span>📸</span> Export PNG ({aspectRatio})
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Download PNG ({aspectRatio})
                   </>
                 )}
               </button>

@@ -68,6 +68,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid urls array in payload" }, { status: 400 });
     }
 
+    const sanitizedTraceMeta = Array.isArray(body.traceMeta)
+      ? body.traceMeta
+          .slice(0, 20)
+          .filter((m): m is Record<string, unknown> => Boolean(m && typeof m === "object"))
+          .map((m) => ({
+            label: typeof m.label === "string" ? m.label.slice(0, 120) : undefined,
+            color: typeof m.color === "string" ? m.color.slice(0, 32) : undefined,
+            notes: typeof m.notes === "string" ? m.notes.slice(0, 300) : undefined,
+            visible: typeof m.visible === "boolean" ? m.visible : undefined,
+            channel:
+              m.channel === "L" || m.channel === "R" || m.channel === "avg" ? m.channel : undefined,
+          }))
+      : undefined;
+
     const workspaceData = {
       urls: body.urls,
       target: typeof body.target === "string" ? body.target.slice(0, 64) : "none",
@@ -76,6 +90,8 @@ export async function POST(req: NextRequest) {
         : [],
       compensated: Boolean(body.compensated),
       interactive: body.interactive !== undefined ? Boolean(body.interactive) : true,
+      channelMode: body.channelMode === "separate" ? "separate" : "avg",
+      ...(sanitizedTraceMeta ? { traceMeta: sanitizedTraceMeta } : {}),
     };
 
     let base64Data: string | null = null;

@@ -28,8 +28,7 @@ export function TutorialSidebar() {
             <a
               key={s.id}
               href={`#${s.id}`}
-              className="block px-4 py-3 md:py-1.5 text-xs rounded-none hover:bg-slate-800/40 transition-colors whitespace-nowrap"
-              style={{ color: "var(--text-secondary)" }}
+              className="block px-4 py-3 md:py-1.5 text-xs rounded-none hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors whitespace-nowrap text-[var(--text-secondary)]"
             >
               {s.label}
             </a>

@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import type { Trace } from "@/types/audio";
 import { TUNING_TARGETS, interpolateTargetAtHz } from "@/lib/targets";
 import { computeRefMean, interpolateLogHz } from "@/lib/parseMeasurementFile";
+import { resolveTraceColorForTheme } from "@/lib/colors";
 
 interface Props {
   traces: Trace[];
@@ -18,7 +19,8 @@ export const DifferenceTable = React.memo(function DifferenceTable({
   isCompensated,
   selectedTarget,
 }: Props) {
-  const [isSwapped, setIsSwapped] = useState(false);
+  const [selectedIdA, setSelectedIdA] = useState<string>("");
+  const [selectedIdB, setSelectedIdB] = useState<string>("");
 
   const visibleTraces = useMemo(() => traces.filter((t) => t.visible), [traces]);
   const targetObj = useMemo(
@@ -26,9 +28,33 @@ export const DifferenceTable = React.memo(function DifferenceTable({
     [selectedTarget]
   );
 
-  const isValid = visibleTraces.length === 2;
-  const traceA = isValid ? (isSwapped ? visibleTraces[1] : visibleTraces[0]) : null;
-  const traceB = isValid ? (isSwapped ? visibleTraces[0] : visibleTraces[1]) : null;
+  // Keep selected Trace A and Trace B synchronized with visible traces
+  useEffect(() => {
+    if (visibleTraces.length < 2) return;
+    const hasA = visibleTraces.some((t) => t.id === selectedIdA);
+    const hasB = visibleTraces.some((t) => t.id === selectedIdB);
+
+    if (!hasA || !hasB || selectedIdA === selectedIdB) {
+      setSelectedIdA(visibleTraces[0].id);
+      setSelectedIdB(visibleTraces[1].id);
+    }
+  }, [visibleTraces, selectedIdA, selectedIdB]);
+
+  const isValid = visibleTraces.length >= 2;
+  const traceA = isValid
+    ? visibleTraces.find((t) => t.id === selectedIdA) || visibleTraces[0]
+    : null;
+  const traceB = isValid
+    ? visibleTraces.find((t) => t.id === selectedIdB && t.id !== traceA?.id) ||
+      visibleTraces.find((t) => t.id !== traceA?.id) ||
+      visibleTraces[1]
+    : null;
+
+  const handleSwap = () => {
+    if (!traceA || !traceB) return;
+    setSelectedIdA(traceB.id);
+    setSelectedIdB(traceA.id);
+  };
 
   const { compareData, isChannelMatching, maxImbalance } = useMemo(() => {
     const evaluateTraceAtFreqs = (trace: Trace | null): (number | null)[] => {
@@ -36,7 +62,6 @@ export const DifferenceTable = React.memo(function DifferenceTable({
         return COMPARE_FREQUENCIES.map(() => null);
       }
       const { hz, db } = trace.normalized;
-      // Compute 900–1100 Hz reference mean ONCE per trace instead of 6 times
       const refMean = computeRefMean(hz, db);
 
       return COMPARE_FREQUENCIES.map((targetHz) => {
@@ -81,46 +106,45 @@ export const DifferenceTable = React.memo(function DifferenceTable({
     };
   }, [traceA, traceB, isValid, isCompensated, targetObj]);
 
+  if (visibleTraces.length === 0) {
+    return null;
+  }
+
   return (
-    <div
-      className={`mt-4 rounded-lg overflow-hidden border transition-colors relative ${
-        theme === "light" ? "border-slate-200 bg-white" : "border-slate-800 bg-[#0d0f14]"
-      }`}
+    <section
+      aria-label="A/B Frequency Response Delta Table"
+      className="mt-3 panel overflow-hidden"
     >
-      <div
-        className={`px-4 py-2 border-b text-sm font-semibold flex items-center justify-between flex-wrap gap-2 ${
-          theme === "light"
-            ? "bg-slate-50 border-slate-200 text-slate-800"
-            : "bg-[#151923] border-slate-800 text-slate-200"
-        }`}
-      >
+      <div className="px-4 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-raised)] text-xs font-semibold flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <span>
+          <span className="text-[var(--text-primary)]">
             {isChannelMatching
-              ? "Channel Imbalance & Matching Table (L vs R)"
-              : "A/B Comparison Table"}
+              ? "L/R Channel Matching & Imbalance"
+              : "A/B Frequency Delta Matrix"}
           </span>
           {isChannelMatching && (
-            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-              Channel Matching
+            <span className="tag tag-info">
+              Channel Match
             </span>
           )}
           {isChannelMatching && maxImbalance > 0 && (
-            <span className="px-2 py-0.5 text-[10px] font-medium rounded bg-slate-800 text-slate-300">
-              Max Imbalance: {maxImbalance.toFixed(1)} dB
+            <span
+              className={`tag tabular-nums ${
+                maxImbalance > 1.5 ? "tag-warn" : "tag-ok"
+              }`}
+            >
+              Max Variance: {maxImbalance.toFixed(1)} dB
             </span>
           )}
         </div>
-        <div className="flex items-center gap-4">
+
+        <div className="flex items-center gap-3">
           {isValid && (
             <button
-              onClick={() => setIsSwapped(!isSwapped)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors ${
-                theme === "light"
-                  ? "bg-slate-200 hover:bg-slate-300 text-slate-700"
-                  : "bg-slate-800 hover:bg-slate-700 text-slate-300"
-              }`}
-              title="Swap Trace A and Trace B"
+              type="button"
+              onClick={handleSwap}
+              className="btn-ghost py-0.5 px-2 text-xs font-mono inline-flex items-center gap-1.5"
+              title="Swap Reference Trace A and Comparison Trace B"
             >
               <svg
                 width="12"
@@ -132,128 +156,149 @@ export const DifferenceTable = React.memo(function DifferenceTable({
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <polyline points="15 14 20 9 15 4"></polyline>
-                <line x1="4" y1="9" x2="20" y2="9"></line>
-                <polyline points="9 10 4 15 9 20"></polyline>
-                <line x1="20" y1="15" x2="4" y2="15"></line>
+                <polyline points="15 14 20 9 15 4" />
+                <line x1="4" y1="9" x2="20" y2="9" />
+                <polyline points="9 10 4 15 9 20" />
+                <line x1="20" y1="15" x2="4" y2="15" />
               </svg>
               Swap A/B
             </button>
           )}
-          <span className="text-xs font-normal opacity-70">Delta = A - B</span>
+          <span className="text-[11px] font-mono text-[var(--text-muted)]">
+            Δ = A − B ({isCompensated ? "Target Rel." : "dB SPL"})
+          </span>
         </div>
       </div>
 
       {!isValid ? (
-        <div className="p-6 flex flex-col items-center justify-center gap-2 text-center">
-          <div
-            className={`px-4 py-2.5 rounded-lg text-xs font-medium border ${
-              theme === "light"
-                ? "bg-slate-50 text-slate-700 border-slate-200 shadow-sm"
-                : "bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border)] shadow-sm"
-            }`}
-          >
-            <span className="font-semibold text-[var(--text-primary)]">A/B Comparison Table: </span>
-            Please select exactly 2 visible traces in the sidebar to compare frequency response
-            delta. (Currently active: {visibleTraces.length})
-          </div>
+        <div className="px-4 py-3 flex items-center justify-between gap-2 text-xs text-[var(--text-secondary)] bg-[var(--bg-surface)]">
+          <span>
+            Enable or import at least <strong>2 visible traces</strong> (or click{" "}
+            <span className="font-mono text-[var(--accent-text)]">Avg→L/R</span> on the current
+            trace) to compute A/B decibel deltas.
+          </span>
+          <span className="font-mono text-[11px] text-[var(--text-muted)] shrink-0 tabular-nums">
+            {visibleTraces.length}/2 active
+          </span>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead
-              className={`text-xs uppercase ${
-                theme === "light"
-                  ? "text-slate-500 bg-slate-50 border-b border-slate-200"
-                  : "text-slate-400 bg-[#151923] border-b border-slate-800"
-              }`}
-            >
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-xs text-left font-mono tabular-nums">
+            <thead className="text-[11px] uppercase bg-[var(--bg-base)] border-b border-[var(--border-subtle)] text-[var(--text-muted)]">
               <tr>
-                <th className="px-4 py-3 font-medium w-1/4">Freq (Hz)</th>
-                <th className="px-4 py-3 font-medium w-1/4">
-                  {traceA ? (
+                <th className="px-4 py-2 font-semibold w-1/4">Freq (Hz)</th>
+                <th className="px-4 py-2 font-semibold w-1/4">
+                  {traceA && (
                     <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full shrink-0"
-                        style={{ backgroundColor: traceA.color }}
-                      ></div>
-                      <span className="truncate max-w-[150px]" title={traceA.label}>
-                        {traceA.label} (A)
-                      </span>
+                      <span
+                        className="w-2.5 h-2.5 rounded-xs shrink-0"
+                        style={{
+                          backgroundColor: resolveTraceColorForTheme(traceA.color, theme),
+                        }}
+                      />
+                      {visibleTraces.length > 2 ? (
+                        <select
+                          aria-label="Select Trace A"
+                          value={traceA.id}
+                          onChange={(e) => setSelectedIdA(e.target.value)}
+                          className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xs px-1.5 py-0.5 text-xs font-sans font-semibold text-[var(--text-primary)] max-w-[180px] truncate outline-none"
+                        >
+                          {visibleTraces.map((t) => (
+                            <option key={t.id} value={t.id} disabled={t.id === traceB?.id}>
+                              {t.label} (A)
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span
+                          className="truncate max-w-[170px] font-sans font-semibold text-[var(--text-primary)]"
+                          title={traceA.label}
+                        >
+                          {traceA.label} (A)
+                        </span>
+                      )}
                     </div>
-                  ) : (
-                    <span className="opacity-50">Trace A</span>
                   )}
                 </th>
-                <th className="px-4 py-3 font-medium w-1/4">
-                  {traceB ? (
+                <th className="px-4 py-2 font-semibold w-1/4">
+                  {traceB && (
                     <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full shrink-0"
-                        style={{ backgroundColor: traceB.color }}
-                      ></div>
-                      <span className="truncate max-w-[150px]" title={traceB.label}>
-                        {traceB.label} (B)
-                      </span>
+                      <span
+                        className="w-2.5 h-2.5 rounded-xs shrink-0"
+                        style={{
+                          backgroundColor: resolveTraceColorForTheme(traceB.color, theme),
+                        }}
+                      />
+                      {visibleTraces.length > 2 ? (
+                        <select
+                          aria-label="Select Trace B"
+                          value={traceB.id}
+                          onChange={(e) => setSelectedIdB(e.target.value)}
+                          className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-xs px-1.5 py-0.5 text-xs font-sans font-semibold text-[var(--text-primary)] max-w-[180px] truncate outline-none"
+                        >
+                          {visibleTraces.map((t) => (
+                            <option key={t.id} value={t.id} disabled={t.id === traceA?.id}>
+                              {t.label} (B)
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span
+                          className="truncate max-w-[170px] font-sans font-semibold text-[var(--text-primary)]"
+                          title={traceB.label}
+                        >
+                          {traceB.label} (B)
+                        </span>
+                      )}
                     </div>
-                  ) : (
-                    <span className="opacity-50">Trace B</span>
                   )}
                 </th>
-                <th className="px-4 py-3 font-medium text-right w-1/4">Delta (dB)</th>
+                <th className="px-4 py-2 font-semibold text-right w-1/4">Delta (dB)</th>
               </tr>
             </thead>
-            <tbody
-              className={
-                theme === "light" ? "divide-y divide-slate-100" : "divide-y divide-slate-800/50"
-              }
-            >
+            <tbody className="divide-y divide-[var(--border-subtle)] bg-[var(--bg-surface)]">
               {compareData.map((row) => (
                 <tr
                   key={row.freq}
-                  className={`transition-colors ${
-                    theme === "light" ? "hover:bg-slate-50" : "hover:bg-slate-800/20"
-                  }`}
+                  className="hover:bg-[var(--bg-hover)] transition-colors"
                 >
-                  <td className="px-4 py-2.5 font-medium">
-                    {row.freq >= 1000 ? `${row.freq / 1000}k` : row.freq}
+                  <td className="px-4 py-2 font-semibold text-[var(--text-primary)]">
+                    {row.freq >= 1000 ? `${row.freq / 1000} kHz` : `${row.freq} Hz`}
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-4 py-2 text-[var(--text-secondary)]">
                     {row.valA !== null
                       ? isCompensated
                         ? row.valA > 0
                           ? `+${row.valA.toFixed(1)}`
                           : row.valA.toFixed(1)
                         : row.valA.toFixed(1)
-                      : "-"}
+                      : "—"}
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-4 py-2 text-[var(--text-secondary)]">
                     {row.valB !== null
                       ? isCompensated
                         ? row.valB > 0
                           ? `+${row.valB.toFixed(1)}`
                           : row.valB.toFixed(1)
                         : row.valB.toFixed(1)
-                      : "-"}
+                      : "—"}
                   </td>
                   <td
-                    className={`px-4 py-2.5 text-right font-medium ${
+                    className={`px-4 py-2 text-right font-semibold ${
                       row.delta === null
-                        ? ""
+                        ? "text-[var(--text-muted)]"
                         : row.delta > 2
-                        ? "text-red-400"
+                        ? "text-[var(--warning)]"
                         : row.delta < -2
-                        ? "text-blue-400"
-                        : theme === "light"
-                        ? "text-slate-600"
-                        : "text-slate-300"
+                        ? "text-sky-600 dark:text-sky-400"
+                        : "text-[var(--text-primary)]"
                     }`}
                   >
                     {row.delta !== null
                       ? row.delta > 0
-                        ? `+${row.delta.toFixed(1)}`
-                        : row.delta.toFixed(1)
-                      : "-"}
+                        ? `+${row.delta.toFixed(1)} dB`
+                        : `${row.delta.toFixed(1)} dB`
+                      : "—"}
                   </td>
                 </tr>
               ))}
@@ -261,6 +306,6 @@ export const DifferenceTable = React.memo(function DifferenceTable({
           </table>
         </div>
       )}
-    </div>
+    </section>
   );
 });

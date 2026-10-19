@@ -37,6 +37,7 @@ interface Props {
   onLoadWorkspace: (name: string) => void;
   onDeleteWorkspace: (name: string) => void;
   onToggleChannelMode?: (id: string) => void;
+  onOpenQuickStart?: () => void;
 }
 
 export const Sidebar = React.memo(function Sidebar({
@@ -70,19 +71,20 @@ export const Sidebar = React.memo(function Sidebar({
   onLoadWorkspace,
   onDeleteWorkspace,
   onToggleChannelMode,
+  onOpenQuickStart,
 }: Props) {
   const [channelMode, setChannelMode] = useState<"separate" | "avg">("avg");
   const [url, setUrl] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [activeResultIndex, setActiveResultIndex] = useState<number>(-1);
   const [isSearching, setIsSearching] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const [openSections, setOpenSections] = useState({
     traces: true,
-    targets: true,
     bands: false,
     workspaces: false,
   });
@@ -91,38 +93,32 @@ export const Sidebar = React.memo(function Sidebar({
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  // Click outside and Escape key listener to close search autocomplete dropdown
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
         setSearchResults([]);
-      }
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setSearchResults([]);
+        setActiveResultIndex(-1);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
   useEffect(() => {
     if (searchQuery.length < 2) {
       setSearchResults([]);
+      setActiveResultIndex(-1);
       return;
     }
-    // Skip autocomplete search when input looks like a URL
     if (
       searchQuery.includes("http://") ||
       searchQuery.includes("https://") ||
       searchQuery.includes("share=")
     ) {
       setSearchResults([]);
+      setActiveResultIndex(-1);
       return;
     }
 
@@ -134,7 +130,9 @@ export const Sidebar = React.memo(function Sidebar({
           signal: controller.signal,
         });
         const data = await res.json();
-        setSearchResults(Array.isArray(data) ? data : []);
+        const items = Array.isArray(data) ? data : [];
+        setSearchResults(items);
+        setActiveResultIndex(items.length > 0 ? 0 : -1);
       } catch (err: any) {
         if (err?.name !== "AbortError") {
           console.error(err);
@@ -142,7 +140,7 @@ export const Sidebar = React.memo(function Sidebar({
       } finally {
         setIsSearching(false);
       }
-    }, 300);
+    }, 250);
 
     return () => {
       clearTimeout(delayDebounceFn);
@@ -166,9 +164,22 @@ export const Sidebar = React.memo(function Sidebar({
     if (results.some(Boolean)) {
       setUrl("");
       setSearchQuery("");
+      setSearchResults([]);
+      setActiveResultIndex(-1);
     }
     setCooldown(2);
   }, [url, loading, cooldown, onImport, channelMode]);
+
+  const handleSelectSearchResult = useCallback(
+    (result: any) => {
+      onImport(result.url, channelMode);
+      setSearchQuery("");
+      setUrl("");
+      setSearchResults([]);
+      setActiveResultIndex(-1);
+    },
+    [onImport, channelMode]
+  );
 
   const handleClearAll = () => {
     if (onClearAllTraces) {
@@ -190,35 +201,66 @@ export const Sidebar = React.memo(function Sidebar({
     }
   };
 
+  const isUrlInput =
+    searchQuery.includes("http://") ||
+    searchQuery.includes("https://") ||
+    searchQuery.includes(".txt") ||
+    searchQuery.includes(".csv") ||
+    searchQuery.includes(".tsv") ||
+    searchQuery.includes("share=");
+
+  const workspaceNames = Object.keys(savedWorkspaces);
+
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-50 flex flex-col h-full overflow-hidden transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+      aria-label="Measurement Control Rack"
+      className={`fixed inset-y-0 left-0 z-50 flex flex-col h-full overflow-hidden transform transition-transform duration-200 ease-out md:relative md:translate-x-0 ${
         isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
       }`}
       style={{
-        width: 310,
-        minWidth: 310,
+        width: 320,
+        minWidth: 320,
         background: "var(--bg-surface)",
         borderRight: "1px solid var(--border-subtle)",
       }}
     >
-      {/* Brand & Action Bar Header */}
-      <div className="flex items-center justify-between px-3.5 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-base)]">
-        <div className="flex items-center gap-2">
-          <span className="text-indigo-400 font-bold text-lg leading-none">〰</span>
-          <span className="font-bold text-sm tracking-tight text-[var(--text-primary)]">
-            FreqRes
-          </span>
+      {/* Instrument Rack Top Bar */}
+      <div className="h-12 flex items-center justify-between px-3.5 border-b border-[var(--border-subtle)] bg-[var(--bg-base)] shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded bg-[var(--bg-raised)] border border-[var(--border)] flex items-center justify-center text-[var(--accent-text)]">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M2 13.5C4.5 13.5 5.5 6 8.2 6C11 6 12.2 18 15 18C17.5 18 18.8 10.5 22 10.5" />
+            </svg>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-semibold text-sm tracking-tight text-[var(--text-primary)]">
+              FreqRes
+            </span>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)]">
+              SPL Lab
+            </span>
+          </div>
         </div>
 
-        {/* Header SVG Icon Actions */}
-        <div className="flex items-center gap-1.5">
+        {/* Global Action Buttons */}
+        <div className="flex items-center gap-1">
           <button
+            type="button"
             onClick={onExportImage}
             disabled={isExportingImage || traces.length === 0}
-            className="p-1.5 rounded-md bg-[var(--bg-raised)] border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors disabled:opacity-40"
-            title="Export Graph Image (PNG)"
-            aria-label="Export PNG"
+            className="inline-flex items-center justify-center w-8 h-8 rounded bg-[var(--bg-raised)] border border-[var(--border)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-glow)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title="PNG Export Studio"
+            aria-label="Open PNG Export Studio"
           >
             {isExportingImage ? (
               <svg
@@ -230,7 +272,7 @@ export const Sidebar = React.memo(function Sidebar({
                 stroke="currentColor"
                 strokeWidth="2"
               >
-                <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
               </svg>
             ) : (
               <svg
@@ -239,22 +281,23 @@ export const Sidebar = React.memo(function Sidebar({
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="1.8"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
             )}
           </button>
 
           <button
+            type="button"
             onClick={onShareWorkspace}
-            disabled={isSharing}
-            className="p-1.5 rounded-md bg-[var(--bg-raised)] border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors relative disabled:opacity-40"
-            title="Share Workspace Link"
+            disabled={isSharing || traces.length === 0}
+            className="inline-flex items-center justify-center w-8 h-8 rounded bg-[var(--bg-raised)] border border-[var(--border)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-glow)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors relative disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Share Workspace Shortlink (Ctrl+S)"
             aria-label="Share Workspace Link"
           >
             <svg
@@ -263,28 +306,29 @@ export const Sidebar = React.memo(function Sidebar({
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="1.8"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <circle cx="18" cy="5" r="3"></circle>
-              <circle cx="6" cy="12" r="3"></circle>
-              <circle cx="18" cy="19" r="3"></circle>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              <circle cx="18" cy="5" r="3" />
+              <circle cx="6" cy="12" r="3" />
+              <circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
             </svg>
             {isCopied && (
-              <span className="absolute -top-7 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-2 py-0.5 rounded text-[10px] whitespace-nowrap shadow-lg z-20 font-sans">
-                Copied!
+              <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 bg-[var(--accent)] text-white px-2 py-0.5 rounded text-[10px] font-mono whitespace-nowrap shadow-lg z-30">
+                Copied
               </span>
             )}
           </button>
 
           <button
+            type="button"
             onClick={onToggleTheme}
-            className="p-1.5 rounded-md bg-[var(--bg-raised)] border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors"
-            title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            aria-label="Toggle Theme"
+            className="inline-flex items-center justify-center w-8 h-8 rounded bg-[var(--bg-raised)] border border-[var(--border)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-glow)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            title={theme === "dark" ? "Switch to Paper-Stone Light Mode" : "Switch to Carbon Dark Mode"}
+            aria-label={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
           >
             {theme === "dark" ? (
               <svg
@@ -293,19 +337,19 @@ export const Sidebar = React.memo(function Sidebar({
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="1.8"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <circle cx="12" cy="12" r="5"></circle>
-                <line x1="12" y1="1" x2="12" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="23"></line>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                <line x1="1" y1="12" x2="3" y2="12"></line>
-                <line x1="21" y1="12" x2="23" y2="12"></line>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
               </svg>
             ) : (
               <svg
@@ -314,20 +358,20 @@ export const Sidebar = React.memo(function Sidebar({
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="1.8"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
               </svg>
             )}
           </button>
 
           <Link
             href="/tutorial"
-            className="p-1.5 rounded-md bg-[var(--bg-raised)] border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] transition-colors"
-            title="Open Guide & Help"
-            aria-label="Guide"
+            className="inline-flex items-center justify-center w-8 h-8 rounded bg-[var(--bg-raised)] border border-[var(--border)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-glow)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            title="Documentation & URL Compatibility Guide"
+            aria-label="Open Guide and Documentation"
           >
             <svg
               width="14"
@@ -335,52 +379,62 @@ export const Sidebar = React.memo(function Sidebar({
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="1.8"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <circle cx="12" cy="12" r="10"></circle>
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
           </Link>
 
           <button
-            className="md:hidden text-[var(--text-muted)] hover:text-white ml-1 p-1"
+            type="button"
+            className="md:hidden inline-flex items-center justify-center w-8 h-8 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] ml-0.5"
             onClick={onClose}
-            aria-label="Close menu"
+            aria-label="Close sidebar drawer"
           >
             <svg
-              width="18"
-              height="18"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2.5"
+              strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
       </div>
 
-      {/* Main Scrollable Control Panel */}
-      <div className="flex flex-col gap-3.5 p-3 flex-1 overflow-y-auto custom-scrollbar">
-        {/* Unified Smart Ingestion & Search Panel */}
-        <section className="p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-[var(--text-primary)]">
-              Import Measurements
-            </span>
-            <div className="flex bg-[var(--bg-surface)] p-0.5 rounded border border-[var(--border-subtle)]">
+      {/* Main Scrollable Control Rack */}
+      <div className="flex flex-col gap-3 p-3 flex-1 overflow-y-auto custom-scrollbar">
+        {/* Ingestion & Database Search Module */}
+        <section
+          aria-label="Import Measurements"
+          className="p-3 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-base)] flex flex-col gap-2.5"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="measurement-search-input" className="text-xs font-semibold text-[var(--text-primary)]">
+              Import Measurement
+            </label>
+            <div
+              role="group"
+              aria-label="Default channel import mode"
+              className="flex bg-[var(--bg-surface)] p-0.5 rounded border border-[var(--border-subtle)]"
+            >
               <button
+                type="button"
                 onClick={() => setChannelMode("avg")}
-                className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors ${
+                aria-pressed={channelMode === "avg"}
+                className={`px-2 py-0.5 text-[10px] font-mono font-semibold rounded-sm transition-colors ${
                   channelMode === "avg"
-                    ? "bg-indigo-600 text-white"
+                    ? "bg-[var(--accent)] text-white"
                     : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 }`}
                 title="Import Left & Right channels merged into a single Average trace"
@@ -388,13 +442,15 @@ export const Sidebar = React.memo(function Sidebar({
                 Avg
               </button>
               <button
+                type="button"
                 onClick={() => setChannelMode("separate")}
-                className={`px-2 py-0.5 text-[10px] font-semibold rounded transition-colors ${
+                aria-pressed={channelMode === "separate"}
+                className={`px-2 py-0.5 text-[10px] font-mono font-semibold rounded-sm transition-colors ${
                   channelMode === "separate"
-                    ? "bg-indigo-600 text-white"
+                    ? "bg-[var(--accent)] text-white"
                     : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 }`}
-                title="Import Left and Right channels as individual curves"
+                title="Import Left and Right channels as separate L and R curves"
               >
                 L + R
               </button>
@@ -403,9 +459,19 @@ export const Sidebar = React.memo(function Sidebar({
 
           <div className="relative" ref={searchContainerRef}>
             <input
+              id="measurement-search-input"
               type="text"
-              className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-indigo-500 font-mono transition-all"
-              placeholder="Search model or paste graph URL..."
+              role="combobox"
+              aria-expanded={searchResults.length > 0}
+              aria-controls="squig-search-listbox"
+              aria-autocomplete="list"
+              aria-activedescendant={
+                activeResultIndex >= 0 && searchResults[activeResultIndex]
+                  ? `search-opt-${searchResults[activeResultIndex].id}`
+                  : undefined
+              }
+              className="input-field"
+              placeholder="Search IEM or paste Squig / .txt URL..."
               value={searchQuery}
               onChange={(e) => {
                 const val = e.target.value;
@@ -413,131 +479,162 @@ export const Sidebar = React.memo(function Sidebar({
                 setUrl(val);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  if (
-                    searchQuery.includes("http://") ||
-                    searchQuery.includes("https://") ||
-                    searchQuery.includes(".txt") ||
-                    searchQuery.includes("share=")
-                  ) {
-                    handleImport();
+                if (searchResults.length > 0) {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setActiveResultIndex((prev) => (prev + 1) % searchResults.length);
+                    return;
                   }
+                  if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setActiveResultIndex((prev) =>
+                      prev <= 0 ? searchResults.length - 1 : prev - 1
+                    );
+                    return;
+                  }
+                  if (e.key === "Enter" && activeResultIndex >= 0) {
+                    e.preventDefault();
+                    handleSelectSearchResult(searchResults[activeResultIndex]);
+                    return;
+                  }
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    setSearchResults([]);
+                    setActiveResultIndex(-1);
+                    return;
+                  }
+                }
+                if (e.key === "Enter" && isUrlInput) {
+                  e.preventDefault();
+                  handleImport();
                 }
               }}
               disabled={loading || cooldown > 0}
             />
 
             {isSearching && (
-              <p className="text-[10px] text-[var(--text-muted)] mt-1">
-                Searching Squiglink database...
+              <p className="text-[11px] font-mono text-[var(--text-muted)] mt-1.5">
+                Querying Squig.link indexes...
               </p>
             )}
 
             {searchResults.length > 0 && (
-              <ul className="absolute z-20 top-[42px] left-0 w-full bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg shadow-xl max-h-48 overflow-y-auto">
-                {searchResults.map((result) => (
-                  <li key={result.id}>
-                    <button
-                      type="button"
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border-b border-[var(--border-subtle)] flex flex-col gap-0.5"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        onImport(result.url, channelMode);
-                        setSearchQuery("");
-                        setUrl("");
-                        setSearchResults([]);
-                      }}
+              <ul
+                id="squig-search-listbox"
+                role="listbox"
+                aria-label="Matching IEM and headphone measurements"
+                className="absolute z-40 top-[calc(100%+4px)] left-0 w-full bg-[var(--bg-surface)] border border-[var(--border)] rounded-md shadow-2xl max-h-56 overflow-y-auto custom-scrollbar"
+              >
+                {searchResults.map((result, idx) => {
+                  const isSelected = idx === activeResultIndex;
+                  return (
+                    <li
+                      key={result.id}
+                      id={`search-opt-${result.id}`}
+                      role="option"
+                      aria-selected={isSelected}
                     >
-                      <span className="font-semibold block truncate">{result.name}</span>
-                      <span className="text-[10px] text-[var(--text-muted)] block truncate font-mono">
-                        {result.source}
-                      </span>
-                    </button>
-                  </li>
-                ))}
+                      <button
+                        type="button"
+                        className={`w-full text-left px-3 py-2 text-xs border-b border-[var(--border-subtle)] flex flex-col gap-0.5 transition-colors ${
+                          isSelected
+                            ? "bg-[var(--bg-hover)] text-[var(--text-primary)]"
+                            : "text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                        }`}
+                        onMouseEnter={() => setActiveResultIndex(idx)}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleSelectSearchResult(result);
+                        }}
+                      >
+                        <span className="font-medium block truncate">{result.name}</span>
+                        <span className="text-[10px] text-[var(--text-muted)] block truncate font-mono">
+                          {result.source}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
 
-          {(searchQuery.includes("http://") ||
-            searchQuery.includes("https://") ||
-            searchQuery.includes(".txt") ||
-            searchQuery.includes("share=")) && (
+          {isUrlInput && (
             <button
+              type="button"
               className="btn-primary w-full py-1.5 text-xs font-semibold"
               onClick={handleImport}
               disabled={loading || !url.trim() || cooldown > 0}
             >
-              {loading ? "Importing..." : "Import URL"}
+              {loading
+                ? "Importing Curve..."
+                : cooldown > 0
+                ? `Ready in ${cooldown}s`
+                : "Import URL"}
             </button>
           )}
         </section>
 
-        {/* Traces Section */}
-        <section className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
-          <div
-            onClick={() => toggleSection("traces")}
-            className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none sticky top-0 z-10 border-b border-transparent"
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-[var(--text-primary)]">
-                Active Traces ({traces.length})
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {traces.length > 0 && (
-                <>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleToggleAll();
-                    }}
-                    className="text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-                    title={
-                      traces.every((t) => t.visible)
-                        ? "Hide all active traces"
-                        : "Show all active traces"
-                    }
-                  >
-                    {traces.every((t) => t.visible) ? "Hide All" : "Show All"}
-                  </button>
-                  <span className="text-[var(--border-subtle)]">•</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleClearAll();
-                    }}
-                    className="text-[10px] font-semibold text-rose-400 hover:text-rose-300"
-                  >
-                    Clear All
-                  </button>
-                </>
-              )}
-              <span
-                className={`transition-transform duration-200 ${
+        {/* Active Traces Module */}
+        <section className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]">
+            <button
+              type="button"
+              onClick={() => toggleSection("traces")}
+              aria-expanded={openSections.traces}
+              className="flex items-center gap-2 text-left flex-1 min-w-0 py-0.5 text-xs font-semibold text-[var(--text-primary)] hover:text-[var(--accent-text)] transition-colors"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={`transition-transform duration-150 shrink-0 text-[var(--text-muted)] ${
                   openSections.traces ? "rotate-180" : ""
                 }`}
-                style={{ color: "var(--text-muted)" }}
               >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+              <span>Active Traces</span>
+              <span className="font-mono text-[11px] text-[var(--text-muted)] tabular-nums">
+                ({traces.length})
               </span>
-            </div>
+            </button>
+
+            {traces.length > 0 && (
+              <div className="flex items-center gap-2 shrink-0 ml-2">
+                <button
+                  type="button"
+                  onClick={handleToggleAll}
+                  className="text-[11px] font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors px-1 py-0.5 rounded"
+                  title={
+                    traces.every((t) => t.visible)
+                      ? "Hide all active traces"
+                      : "Show all active traces"
+                  }
+                >
+                  {traces.every((t) => t.visible) ? "Hide All" : "Show All"}
+                </button>
+                <span className="text-[var(--border)]" aria-hidden="true">
+                  |
+                </span>
+                <button
+                  type="button"
+                  onClick={handleClearAll}
+                  className="text-[11px] font-mono text-[var(--error)] hover:opacity-80 transition-opacity px-1 py-0.5 rounded"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
           </div>
 
           {openSections.traces && (
-            <div className="p-2 border-t border-[var(--border-subtle)] max-h-[340px] overflow-y-auto custom-scrollbar flex flex-col pr-1">
+            <div className="p-2 max-h-[340px] overflow-y-auto custom-scrollbar flex flex-col">
               <TraceList
                 traces={traces}
                 onToggle={onToggleTrace}
@@ -552,18 +649,14 @@ export const Sidebar = React.memo(function Sidebar({
           )}
         </section>
 
-        {/* Parameter Bands Section */}
-        <section className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
-          <div
-            onClick={() => toggleSection("bands")}
-            className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none sticky top-0 z-10 border-b border-transparent"
-          >
-            <span className="text-xs font-bold text-[var(--text-primary)]">Parameter Bands</span>
-            <span
-              className={`transition-transform duration-200 ${
-                openSections.bands ? "rotate-180" : ""
-              }`}
-              style={{ color: "var(--text-muted)" }}
+        {/* Parameter Bands Module */}
+        <section className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]">
+            <button
+              type="button"
+              onClick={() => toggleSection("bands")}
+              aria-expanded={openSections.bands}
+              className="flex items-center gap-2 text-left flex-1 min-w-0 py-0.5 text-xs font-semibold text-[var(--text-primary)] hover:text-[var(--accent-text)] transition-colors"
             >
               <svg
                 width="12"
@@ -571,28 +664,36 @@ export const Sidebar = React.memo(function Sidebar({
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2.5"
+                strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                className={`transition-transform duration-150 shrink-0 text-[var(--text-muted)] ${
+                  openSections.bands ? "rotate-180" : ""
+                }`}
               >
-                <polyline points="6 9 12 15 18 9"></polyline>
+                <polyline points="6 9 12 15 18 9" />
               </svg>
-            </span>
+              <span>Parameter Bands</span>
+              {enabledBands.size > 0 && (
+                <span className="font-mono text-[11px] text-[var(--accent-text)] tabular-nums">
+                  ({enabledBands.size})
+                </span>
+              )}
+            </button>
+
+            {enabledBands.size > 0 && (
+              <button
+                type="button"
+                onClick={onClearAllBands}
+                className="text-[11px] font-mono text-[var(--accent-text)] hover:opacity-80 transition-opacity px-1 py-0.5 rounded shrink-0"
+              >
+                Reset
+              </button>
+            )}
           </div>
 
           {openSections.bands && (
-            <div className="p-3 border-t border-[var(--border-subtle)] flex flex-col gap-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
-              {enabledBands.size > 0 && (
-                <div className="flex items-center justify-end">
-                  <button
-                    onClick={onClearAllBands}
-                    className="text-[10px] font-semibold text-indigo-400 hover:text-indigo-300"
-                  >
-                    Clear All Bands
-                  </button>
-                </div>
-              )}
-
+            <div className="p-2.5 flex flex-col gap-2 max-h-[300px] overflow-y-auto custom-scrollbar">
               <BandToggleGroup
                 enabled={enabledBands}
                 onToggle={onToggleBand}
@@ -604,20 +705,14 @@ export const Sidebar = React.memo(function Sidebar({
           )}
         </section>
 
-        {/* Saved Workspaces Section */}
-        <section className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
-          <div
-            onClick={() => toggleSection("workspaces")}
-            className="flex items-center justify-between px-3 py-2 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] transition-colors select-none sticky top-0 z-10 border-b border-transparent"
-          >
-            <span className="text-xs font-bold text-[var(--text-primary)]">
-              Saved Workspaces ({Object.keys(savedWorkspaces).length})
-            </span>
-            <span
-              className={`transition-transform duration-200 ${
-                openSections.workspaces ? "rotate-180" : ""
-              }`}
-              style={{ color: "var(--text-muted)" }}
+        {/* Saved Workspaces Module */}
+        <section className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-base)] overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]">
+            <button
+              type="button"
+              onClick={() => toggleSection("workspaces")}
+              aria-expanded={openSections.workspaces}
+              className="flex items-center gap-2 text-left flex-1 min-w-0 py-0.5 text-xs font-semibold text-[var(--text-primary)] hover:text-[var(--accent-text)] transition-colors"
             >
               <svg
                 width="12"
@@ -625,57 +720,72 @@ export const Sidebar = React.memo(function Sidebar({
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2.5"
+                strokeWidth="2.2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                className={`transition-transform duration-150 shrink-0 text-[var(--text-muted)] ${
+                  openSections.workspaces ? "rotate-180" : ""
+                }`}
               >
-                <polyline points="6 9 12 15 18 9"></polyline>
+                <polyline points="6 9 12 15 18 9" />
               </svg>
-            </span>
+              <span>Saved Workspaces</span>
+              <span className="font-mono text-[11px] text-[var(--text-muted)] tabular-nums">
+                ({workspaceNames.length})
+              </span>
+            </button>
           </div>
 
           {openSections.workspaces && (
-            <div className="p-3 border-t border-[var(--border-subtle)] flex flex-col gap-2">
-              <div className="flex gap-2">
+            <div className="p-2.5 flex flex-col gap-2">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (newWorkspaceName.trim()) {
+                    onSaveWorkspace(newWorkspaceName.trim());
+                    setNewWorkspaceName("");
+                  }
+                }}
+                className="flex gap-1.5"
+              >
                 <input
                   type="text"
                   value={newWorkspaceName}
                   onChange={(e) => setNewWorkspaceName(e.target.value)}
-                  placeholder="Workspace name..."
-                  className="flex-1 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-2.5 py-1 text-xs text-[var(--text-primary)] outline-none focus:border-indigo-500"
+                  placeholder="Snapshot name..."
+                  aria-label="New workspace snapshot name"
+                  className="input-field py-1 text-xs flex-1"
                 />
                 <button
-                  onClick={() => {
-                    if (newWorkspaceName.trim()) {
-                      onSaveWorkspace(newWorkspaceName.trim());
-                      setNewWorkspaceName("");
-                    }
-                  }}
+                  type="submit"
+                  disabled={!newWorkspaceName.trim()}
                   className="btn-primary px-3 py-1 text-xs font-semibold shrink-0"
                 >
                   Save
                 </button>
-              </div>
+              </form>
 
-              <div className="flex flex-col gap-1 max-h-32 overflow-y-auto custom-scrollbar mt-1">
-                {Object.keys(savedWorkspaces).length === 0 ? (
+              <div className="flex flex-col gap-1 max-h-36 overflow-y-auto custom-scrollbar">
+                {workspaceNames.length === 0 ? (
                   <p className="text-[11px] text-[var(--text-muted)] py-1">
-                    No saved workspaces yet.
+                    No saved local snapshots yet.
                   </p>
                 ) : (
-                  Object.keys(savedWorkspaces).map((name) => (
+                  workspaceNames.map((name) => (
                     <div
                       key={name}
-                      className="flex items-center justify-between bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-2.5 py-1 text-xs"
+                      className="flex items-center justify-between bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 text-xs"
                     >
                       <button
-                        className="font-medium text-[var(--text-primary)] hover:text-indigo-400 truncate flex-1 text-left"
+                        type="button"
+                        className="font-medium text-[var(--text-primary)] hover:text-[var(--accent-text)] truncate flex-1 text-left transition-colors"
                         onClick={() => onLoadWorkspace(name)}
                       >
                         {name}
                       </button>
                       <button
-                        className="text-[11px] text-rose-400 hover:text-rose-300 ml-2"
+                        type="button"
+                        className="inline-flex items-center justify-center w-6 h-6 rounded text-[var(--text-muted)] hover:text-[var(--error)] hover:bg-[var(--bg-hover)] ml-1 transition-colors"
                         onClick={() => onDeleteWorkspace(name)}
                         aria-label={`Delete workspace ${name}`}
                       >
@@ -685,12 +795,12 @@ export const Sidebar = React.memo(function Sidebar({
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
-                          strokeWidth="2.5"
+                          strokeWidth="2.2"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         >
-                          <line x1="18" y1="6" x2="6" y2="18"></line>
-                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
                         </svg>
                       </button>
                     </div>
@@ -702,23 +812,36 @@ export const Sidebar = React.memo(function Sidebar({
         </section>
       </div>
 
-      {/* Clean Footer Bar */}
-      <div className="p-3 border-t border-[var(--border-subtle)] bg-[var(--bg-base)] flex items-center justify-between text-[11px] text-[var(--text-muted)]">
-        <Link href="/tutorial" className="hover:text-[var(--text-primary)] transition-colors">
-          Guide
-        </Link>
-        <span>•</span>
-        <Link href="/legal" className="hover:text-[var(--text-primary)] transition-colors">
-          Legal
-        </Link>
-        <span>•</span>
+      {/* Rack Footer Bar */}
+      <div className="px-3.5 py-2.5 border-t border-[var(--border-subtle)] bg-[var(--bg-base)] flex items-center justify-between text-[11px] font-mono text-[var(--text-muted)] shrink-0">
+        <div className="flex items-center gap-2.5">
+          <Link href="/tutorial" className="hover:text-[var(--text-primary)] transition-colors">
+            Guide
+          </Link>
+          <span>·</span>
+          <Link href="/legal" className="hover:text-[var(--text-primary)] transition-colors">
+            Legal
+          </Link>
+          {onOpenQuickStart && (
+            <>
+              <span>·</span>
+              <button
+                type="button"
+                onClick={onOpenQuickStart}
+                className="hover:text-[var(--text-primary)] transition-colors"
+              >
+                Shortcuts
+              </button>
+            </>
+          )}
+        </div>
         <a
           href="https://github.com/jaermaine/freqres-visualizer-dashboard/issues"
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-[var(--text-primary)] transition-colors"
         >
-          Feedback
+          Issues ↗
         </a>
       </div>
     </aside>

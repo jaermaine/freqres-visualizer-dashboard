@@ -113,8 +113,8 @@ export function GuideContent() {
         </div>
 
         {/* Live URL Compatibility Checker */}
-        <section id="url-checker" className="mb-10 p-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-          <h2 className="text-sm font-semibold mb-1 text-[var(--text-primary)] uppercase tracking-wider">
+        <section id="url-checker" className="mb-10 p-5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+          <h2 className="text-sm font-semibold mb-1 text-[var(--text-primary)]">
             URL Compatibility Checker
           </h2>
           <p className="text-xs text-[var(--text-muted)] mb-3">
@@ -129,7 +129,7 @@ export function GuideContent() {
                 setTestUrl(e.target.value);
                 setTestResult(null);
               }}
-              className="flex-1 bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-indigo-500"
+              className="input-field flex-1 font-mono"
             />
             <button type="submit" className="btn-primary px-4 py-2 text-xs font-semibold shrink-0">
               Check URL
@@ -137,77 +137,77 @@ export function GuideContent() {
           </form>
 
           {testResult && (
-            <div className="mt-3 p-3 rounded-lg border text-xs bg-[var(--bg-base)] border-[var(--border-subtle)]">
+            <div className="mt-3 p-3 rounded border text-xs bg-[var(--bg-base)] border-[var(--border-subtle)]">
               {testResult.kind === "squiglink-share-url" && (
-                <div className="flex items-center gap-2 text-emerald-400 font-medium">
-                  <span>[Supported]</span> Valid Squig.link share URL ({testResult.host})
+                <div className="flex items-center gap-2 font-medium" style={{ color: "var(--success)" }}>
+                  <span className="font-mono">[Supported]</span> Valid Squig.link share URL ({testResult.host})
                 </div>
               )}
               {testResult.kind === "raw-measurement-file-url" && (
-                <div className="flex items-center gap-2 text-emerald-400 font-medium">
-                  <span>[Supported]</span> Direct raw measurement file ({testResult.ext.toUpperCase()})
+                <div className="flex items-center gap-2 font-medium" style={{ color: "var(--success)" }}>
+                  <span className="font-mono">[Supported]</span> Direct raw measurement file ({testResult.ext.toUpperCase()})
                 </div>
               )}
               {testResult.kind === "hangout-graph-url" && (
-                <div className="flex items-center gap-2 text-amber-400 font-medium">
-                  <span>[Unsupported]</span> Hangout Audio URL (No direct curve files available)
+                <div className="flex items-center gap-2 font-medium" style={{ color: "var(--warning)" }}>
+                  <span className="font-mono">[Unsupported]</span> Hangout Audio URL (No direct curve files available)
                 </div>
               )}
               {testResult.kind === "unsupported-url" && (
-                <div className="flex items-center gap-2 text-rose-400 font-medium">
-                  <span>[Unsupported]</span> {testResult.reason}
+                <div className="flex items-center gap-2 font-medium" style={{ color: "var(--danger)" }}>
+                  <span className="font-mono">[Unsupported]</span> {testResult.reason}
                 </div>
               )}
             </div>
           )}
         </section>
 
-        {/* Feature Cards Grid */}
+        {/* Core Capabilities Specification List */}
         <section id="features-overview" className="mb-10">
-          <h2 className="text-base font-semibold mb-4 text-[var(--text-primary)]">
+          <h2 className="text-base font-semibold mb-3 text-[var(--text-primary)]">
             Core Features & Capabilities
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-              <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider block mb-1">
+          <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] divide-y divide-[var(--border-subtle)]">
+            <div className="p-4 flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-6">
+              <h3 className="text-xs font-semibold text-[var(--text-primary)] sm:w-56 shrink-0">
                 Graph & Axis Engine
-              </span>
+              </h3>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                 Logarithmic 20Hz–20kHz frequency scale with 4-directional plot borders. Smooth desktop scroll-wheel zooming centered on your cursor with region focus presets (Bass, Mids, Treble).
               </p>
             </div>
 
-            <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-              <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider block mb-1">
+            <div className="p-4 flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-6">
+              <h3 className="text-xs font-semibold text-[var(--text-primary)] sm:w-56 shrink-0">
                 Tuning Targets & Compensation
-              </span>
+              </h3>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                 Overlay Harman IE 2019, IEF Neutral, Diffuse Field, or B&K 5128 targets. Toggle Compensation Mode to flatten the target line into a 0dB baseline and evaluate +/- dB deltas instantly.
               </p>
             </div>
 
-            <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-              <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider block mb-1">
+            <div className="p-4 flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-6">
+              <h3 className="text-xs font-semibold text-[var(--text-primary)] sm:w-56 shrink-0">
                 A/B Difference & Channel Imbalance
-              </span>
+              </h3>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                Calculates decibel deltas between traces at key frequencies. Comparing Left (L) and Right (R) channel curves automatically activates Channel Imbalance Mode and measures max dB variance across the spectrum.
+                Calculates decibel deltas between any two visible traces at key frequencies. Comparing Left (L) and Right (R) channel curves automatically activates Channel Imbalance Mode and measures max dB variance across the spectrum.
               </p>
             </div>
 
-            <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-              <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider block mb-1">
+            <div className="p-4 flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-6">
+              <h3 className="text-xs font-semibold text-[var(--text-primary)] sm:w-56 shrink-0">
                 Default Average & Per-Trace L/R Toggle
-              </span>
+              </h3>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                Imports default to clean single Average curves. Each active trace features a 1-click "Avg to L/R" and "L/R to Avg" toggle to split into Left and Right channel traces or merge back on demand.
+                Imports default to clean single Average curves. Each active trace features a 1-click &ldquo;Avg to L/R&rdquo; and &ldquo;L/R to Avg&rdquo; toggle to split into Left and Right channel traces or merge back on demand.
               </p>
             </div>
 
-            <div className="p-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-              <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider block mb-1">
+            <div className="p-4 flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-6">
+              <h3 className="text-xs font-semibold text-[var(--text-primary)] sm:w-56 shrink-0">
                 PNG Export Studio
-              </span>
+              </h3>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                 Generate high-resolution PNG graph screenshots with live preview windows, aspect ratios (16:9, 1:1, 4:3), theme styles (Dark/Light mode), and reviewer attribution credits.
               </p>
@@ -221,7 +221,7 @@ export function GuideContent() {
             <h2 className="text-base font-semibold text-[var(--text-primary)]">
               URL Patterns & Data Ingestion
             </h2>
-            <div className="flex bg-[var(--bg-surface)] p-1 rounded-lg border border-[var(--border-subtle)]">
+            <div className="flex bg-[var(--bg-surface)] p-1 rounded border border-[var(--border-subtle)]">
               {[
                 { id: "supported", label: "Supported Graphs" },
                 { id: "raw", label: "Raw Files" },
@@ -229,10 +229,10 @@ export function GuideContent() {
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  onClick={() => setActiveTab(tab.id as "supported" | "raw" | "unsupported")}
+                  className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors ${
                     activeTab === tab.id
-                      ? "bg-indigo-600 text-white"
+                      ? "bg-[var(--accent)] text-white"
                       : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                   }`}
                 >
@@ -250,34 +250,34 @@ export function GuideContent() {
         </section>
 
         {/* Trace Controls & Shortcuts */}
-        <section id="managing-traces" className="mb-10 p-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+        <section id="managing-traces" className="mb-10 p-5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           <h2 className="text-base font-semibold mb-3 text-[var(--text-primary)]">
             Trace Controls & Shortcuts
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-[var(--text-secondary)]">
             <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-base)] border border-[var(--border-subtle)]">
               <span>Per-Trace Channel Toggle</span>
-              <kbd className="px-2 py-0.5 bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 rounded text-[10px]">Avg ⇄ L/R</kbd>
+              <kbd className="px-2 py-0.5 bg-[var(--accent-subtle)] text-[var(--accent-text)] border border-[var(--accent-border)] rounded font-mono text-[10px]">Avg ⇄ L/R</kbd>
             </div>
             <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-base)] border border-[var(--border-subtle)]">
               <span>Toggle Trace Visibility</span>
-              <kbd className="px-2 py-0.5 bg-slate-800 text-slate-200 border border-slate-700 rounded text-[10px]">1 - 9</kbd>
+              <kbd className="px-2 py-0.5 bg-[var(--bg-raised)] text-[var(--text-primary)] border border-[var(--border)] rounded font-mono text-[10px]">1 - 9</kbd>
             </div>
             <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-base)] border border-[var(--border-subtle)]">
               <span>Undo Removal / Change</span>
-              <kbd className="px-2 py-0.5 bg-slate-800 text-slate-200 border border-slate-700 rounded text-[10px]">Ctrl + Z</kbd>
+              <kbd className="px-2 py-0.5 bg-[var(--bg-raised)] text-[var(--text-primary)] border border-[var(--border)] rounded font-mono text-[10px]">Ctrl + Z</kbd>
             </div>
             <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-base)] border border-[var(--border-subtle)]">
               <span>Redo Change</span>
-              <kbd className="px-2 py-0.5 bg-slate-800 text-slate-200 border border-slate-700 rounded text-[10px]">Ctrl + Y</kbd>
+              <kbd className="px-2 py-0.5 bg-[var(--bg-raised)] text-[var(--text-primary)] border border-[var(--border)] rounded font-mono text-[10px]">Ctrl + Y</kbd>
             </div>
             <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-base)] border border-[var(--border-subtle)]">
               <span>Share Workspace Link</span>
-              <kbd className="px-2 py-0.5 bg-slate-800 text-slate-200 border border-slate-700 rounded text-[10px]">Ctrl + S</kbd>
+              <kbd className="px-2 py-0.5 bg-[var(--bg-raised)] text-[var(--text-primary)] border border-[var(--border)] rounded font-mono text-[10px]">Ctrl + S</kbd>
             </div>
             <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-base)] border border-[var(--border-subtle)]">
-              <span>Attach Notes to Trace</span>
-              <kbd className="px-2 py-0.5 bg-slate-800 text-slate-200 border border-slate-700 rounded text-[10px]">✎ Icon</kbd>
+              <span>Quick-Start &amp; Shortcuts Modal</span>
+              <kbd className="px-2 py-0.5 bg-[var(--bg-raised)] text-[var(--text-primary)] border border-[var(--border)] rounded font-mono text-[10px]">?</kbd>
             </div>
           </div>
         </section>
@@ -289,8 +289,8 @@ export function GuideContent() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {PARSE_ERRORS.map((e) => (
-              <div key={e.code} className="p-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 inline-block mb-1.5">
+              <div key={e.code} className="p-3 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+                <span className="tag tag-error font-mono inline-block mb-1.5">
                   {e.code}
                 </span>
                 <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
@@ -302,7 +302,7 @@ export function GuideContent() {
         </section>
 
         {/* Feedback Section */}
-        <section id="feedback" className="mb-8 p-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <section id="feedback" className="mb-8 p-5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-sm font-semibold text-[var(--text-primary)]">Feedback & Issue Tracking</h2>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">

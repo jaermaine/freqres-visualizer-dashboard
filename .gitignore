@@ -37,5 +37,11 @@ next-env.d.ts
 
 # agent skills
 .agents/
+.codex/
 skills-lock.json
+
+# implementation documentation
+DESIGN.md
+PRODUCT.md
+.impeccable/
 

@@ -3,7 +3,7 @@
 import { useState, useCallback, useId, useEffect, useRef, useMemo } from "react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
-import { FRChart } from "./FRChart";
+import { FRChart, type SamplePresetId } from "./FRChart";
 import { DifferenceTable } from "./DifferenceTable";
 import { ExportStudioModal, type ExportOptions } from "./ExportStudioModal";
 import { ImportStatus } from "./HelpPanel";
@@ -13,14 +13,130 @@ import type { Trace, ImportResult } from "@/types/audio";
 import { PARAMETER_BANDS } from "@/lib/parameterBands";
 import { getReviewerName } from "@/lib/sourceUtils";
 import { PALETTE } from "@/lib/colors";
+import { buildLogGrid } from "@/lib/parseMeasurementFile";
+import { getTargetGridDb } from "@/lib/targets";
 
 function getAvailableColor(traces: Trace[], currentLabel: string, theme: string): string {
   if (currentLabel.toLowerCase().includes("target")) {
-    return theme === "light" ? "#334155" : "#ffffff";
+    return theme === "light" ? "#334155" : "#e5e7eb";
   }
   const usedColors = new Set(traces.map((t) => t.color));
   const availableColor = PALETTE.find((c) => !usedColors.has(c));
   return availableColor || PALETTE[traces.length % PALETTE.length];
+}
+
+function createSampleTraces(preset: SamplePresetId, uid: string): Trace[] {
+  const hz = buildLogGrid();
+  const baseTarget = getTargetGridDb("harman-ie-2019") || hz.map(() => 0);
+
+  // Studio Reference IEM: controlled sub-bass shelf, neutral lower mids, accurate 3 kHz ear gain
+  const refLeftDb = hz.map((f, i) => {
+    const logF = Math.log10(f);
+    const subBass = -1.2 * Math.exp(-Math.pow((logF - Math.log10(60)) / 0.35, 2));
+    const upperTreble = 1.4 * Math.exp(-Math.pow((logF - Math.log10(12000)) / 0.18, 2));
+    return Number((baseTarget[i] + 60 + subBass + upperTreble).toFixed(2));
+  });
+
+  const refRightDb = hz.map((f, i) => {
+    const logF = Math.log10(f);
+    // Realistic 1.6 dB channel variance around 4.5 kHz - 9 kHz
+    const imbalance =
+      1.6 * Math.exp(-Math.pow((logF - Math.log10(5200)) / 0.22, 2)) -
+      0.4 * Math.exp(-Math.pow((logF - Math.log10(120)) / 0.3, 2));
+    return Number((refLeftDb[i] + imbalance).toFixed(2));
+  });
+
+  const refAvgDb = hz.map((_, i) => Number(((refLeftDb[i] + refRightDb[i]) / 2).toFixed(2)));
+  const refRawChannels = {
+    left: { hz, db: refLeftDb },
+    right: { hz, db: refRightDb },
+  };
+
+  if (preset === "channel-matching") {
+    return [
+      {
+        id: `${uid}-sample-L`,
+        label: "Reference Studio IEM (L)",
+        channel: "L",
+        color: PALETTE[6], // Cyan Phase
+        normalized: { hz, db: refLeftDb },
+        source: {
+          kind: "squiglink-share-url",
+          host: "squig.link",
+          baseUrl: "https://squig.link",
+          models: [{ raw: "Reference_Studio_IEM", label: "Reference Studio IEM" }],
+        },
+        visible: true,
+        notes: "Coupler 711 Left channel reference",
+        rawChannels: refRawChannels,
+      },
+      {
+        id: `${uid}-sample-R`,
+        label: "Reference Studio IEM (R)",
+        channel: "R",
+        color: PALETTE[0], // Crimson Signal
+        normalized: { hz, db: refRightDb },
+        source: {
+          kind: "squiglink-share-url",
+          host: "squig.link",
+          baseUrl: "https://squig.link",
+          models: [{ raw: "Reference_Studio_IEM", label: "Reference Studio IEM" }],
+        },
+        visible: true,
+        notes: "Coupler 711 Right channel (+1.6 dB at 5.2 kHz)",
+        rawChannels: refRawChannels,
+      },
+    ];
+  }
+
+  // Warm V-Shape Dynamic IEM: elevated mid-bass warmth, relaxed 2.5 kHz pinna, crisp 8 kHz peak
+  const warmLeftDb = hz.map((f, i) => {
+    const logF = Math.log10(f);
+    const midBassWarmth = 2.8 * Math.exp(-Math.pow((logF - Math.log10(130)) / 0.38, 2));
+    const pinnaDip = -2.1 * Math.exp(-Math.pow((logF - Math.log10(2800)) / 0.24, 2));
+    const treblePeak = 2.5 * Math.exp(-Math.pow((logF - Math.log10(8000)) / 0.16, 2));
+    return Number((baseTarget[i] + 60 + midBassWarmth + pinnaDip + treblePeak).toFixed(2));
+  });
+  const warmRightDb = hz.map((_, i) => Number((warmLeftDb[i] + 0.25).toFixed(2)));
+  const warmAvgDb = hz.map((_, i) => Number(((warmLeftDb[i] + warmRightDb[i]) / 2).toFixed(2)));
+
+  return [
+    {
+      id: `${uid}-sample-A`,
+      label: "Studio Neutral Reference",
+      channel: "avg",
+      color: PALETTE[1], // Teal Reference
+      normalized: { hz, db: refAvgDb },
+      source: {
+        kind: "squiglink-share-url",
+        host: "squig.link",
+        baseUrl: "https://squig.link",
+        models: [{ raw: "Studio_Neutral_Reference", label: "Studio Neutral Reference" }],
+      },
+      visible: true,
+      notes: "Sample calibration curve · Silicone wide-bore tips",
+      rawChannels: refRawChannels,
+    },
+    {
+      id: `${uid}-sample-B`,
+      label: "Warm Dynamic IEM",
+      channel: "avg",
+      color: PALETTE[2], // Amber Gold
+      normalized: { hz, db: warmAvgDb },
+      source: {
+        kind: "squiglink-share-url",
+        host: "precog.squig.link",
+        baseUrl: "https://precog.squig.link",
+        models: [{ raw: "Warm_Dynamic_IEM", label: "Warm Dynamic IEM" }],
+      },
+      visible: true,
+      notes: "Sample comparison curve · Elevated mid-bass warmth",
+      rawChannels: {
+        left: { hz, db: warmLeftDb },
+        right: { hz, db: warmRightDb },
+      },
+    },
+  ];
 }
 
 type TraceHistoryState = {
@@ -42,7 +158,7 @@ export function AppShell() {
       const next = typeof action === "function" ? action(prev.current) : action;
       if (next === prev.current) return prev;
       const upToCurrent = prev.stack.slice(0, prev.index + 1);
-      const newStack = [...upToCurrent, next].slice(-50);
+      const newStack = [...upToCurrent, next].slice(-40);
       return {
         current: next,
         stack: newStack,
@@ -109,10 +225,6 @@ export function AppShell() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const hasSeen = localStorage.getItem("freqres_hasSeenOnboarding") === "true";
-      if (!hasSeen) {
-        setShowOnboarding(true);
-      }
       const savedTheme = localStorage.getItem("freqres_theme");
       if (savedTheme === "light" || savedTheme === "dark") {
         setTheme(savedTheme);
@@ -138,12 +250,38 @@ export function AppShell() {
   }, []);
 
   const handleCloseOnboarding = useCallback(() => {
-    localStorage.setItem("freqres_hasSeenOnboarding", "true");
     setShowOnboarding(false);
   }, []);
 
+  const handleOpenQuickStart = useCallback(() => {
+    setShowOnboarding(true);
+  }, []);
+
+  const handleFocusSearch = useCallback(() => {
+    setIsSidebarOpen(true);
+    setTimeout(() => {
+      const input = document.getElementById("measurement-search-input") as HTMLInputElement | null;
+      input?.focus();
+    }, 60);
+  }, []);
+
+  const handleLoadSample = useCallback(
+    (preset: SamplePresetId) => {
+      const sampleTraces = createSampleTraces(preset, uid);
+      setTraces(sampleTraces);
+      if (preset === "ab-comparison") {
+        setSelectedTarget("harman-ie-2019");
+        setIsCompensated(false);
+      } else {
+        setSelectedTarget("none");
+        setIsCompensated(false);
+      }
+    },
+    [uid, setTraces]
+  );
+
   const handleImport = useCallback(
-    async (url: string, channelMode: "separate" | "avg" = "separate") => {
+    async (url: string, channelMode: "separate" | "avg" = "avg") => {
       setLoading(true);
       setLastResult(null);
       try {
@@ -202,7 +340,6 @@ export function AppShell() {
             return added ? currentTraces : prev;
           });
 
-          // Auto-dismiss success toast after 4s
           setTimeout(() => {
             setLastResult((prev) => (prev === data ? null : prev));
           }, 4000);
@@ -241,11 +378,31 @@ export function AppShell() {
             if (data.bands) setEnabledBands(new Set(data.bands));
             if (data.compensated !== undefined) setIsCompensated(data.compensated);
             if (data.interactive !== undefined) setIsInteractiveGraph(data.interactive);
+            const sharedMode: "separate" | "avg" =
+              data.channelMode === "separate" ? "separate" : "avg";
 
             if (data.urls && Array.isArray(data.urls)) {
-              Promise.all(data.urls.map((u: string) => handleImport(u))).finally(() => {
-                setFetchingShared(false);
-              });
+              Promise.all(data.urls.map((u: string) => handleImport(u, sharedMode)))
+                .then(() => {
+                  if (Array.isArray(data.traceMeta) && data.traceMeta.length > 0) {
+                    setTraces((prev) =>
+                      prev.map((t, idx) => {
+                        const meta = data.traceMeta[idx];
+                        if (!meta) return t;
+                        return {
+                          ...t,
+                          ...(meta.label ? { label: meta.label } : {}),
+                          ...(meta.color ? { color: meta.color } : {}),
+                          ...(meta.notes !== undefined ? { notes: meta.notes } : {}),
+                          ...(typeof meta.visible === "boolean" ? { visible: meta.visible } : {}),
+                        };
+                      })
+                    );
+                  }
+                })
+                .finally(() => {
+                  setFetchingShared(false);
+                });
             } else {
               setFetchingShared(false);
             }
@@ -278,7 +435,7 @@ export function AppShell() {
         if (data.interactive !== undefined) setIsInteractiveGraph(data.interactive);
 
         if (data.urls && Array.isArray(data.urls)) {
-          void Promise.all(data.urls.map((u: string) => handleImport(u)));
+          void Promise.all(data.urls.map((u: string) => handleImport(u, "avg")));
         }
 
         window.history.replaceState({}, "", "/");
@@ -329,6 +486,7 @@ export function AppShell() {
   // URL Sharing (Database Shortlink)
   const [isSharing, setIsSharing] = useState(false);
   const handleShareWorkspace = useCallback(async () => {
+    if (traces.length === 0) return;
     setIsSharing(true);
     try {
       const urls = traces
@@ -362,12 +520,23 @@ export function AppShell() {
         console.error("Failed to capture graph image:", imgErr);
       }
 
+      const hasSplitChannels = traces.some((t) => t.channel === "L" || t.channel === "R");
+      const traceMeta = traces.map((t) => ({
+        label: t.label,
+        color: t.color,
+        notes: t.notes,
+        visible: t.visible,
+        channel: t.channel,
+      }));
+
       const state = {
         urls: uniqueUrls,
         target: selectedTarget,
         bands: Array.from(enabledBands),
         compensated: isCompensated,
         interactive: isInteractiveGraph,
+        channelMode: hasSplitChannels ? "separate" : "avg",
+        traceMeta,
         ...(imageBase64 ? { image: imageBase64 } : {}),
       };
 
@@ -377,7 +546,10 @@ export function AppShell() {
         body: JSON.stringify(state),
       });
 
-      if (!res.ok) throw new Error("Failed to generate shortlink");
+      if (!res.ok) {
+        const errPayload = await res.json().catch(() => ({}));
+        throw new Error(errPayload.error || "Failed to generate shortlink");
+      }
       const data = await res.json();
       const shortUrl = `${window.location.origin}/s/${data.id}`;
 
@@ -388,9 +560,13 @@ export function AppShell() {
       } catch (err) {
         console.error("Failed to copy to clipboard:", err);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to share workspace:", err);
-      alert("Failed to share workspace. Please try again.");
+      setLastResult({
+        ok: false,
+        code: "FETCH_ERROR",
+        message: err?.message || "Failed to generate share link. Please try again.",
+      });
     } finally {
       setIsSharing(false);
     }
@@ -431,25 +607,26 @@ export function AppShell() {
         const graphDiv = document.querySelector(".js-plotly-plot") as any;
         if (!graphDiv) return null;
 
-        // Render offscreen figure specification without mutating or flashing the live DOM chart
         const clonedLayout = {
           ...graphDiv.layout,
-          paper_bgcolor: isDark ? "#0d0f14" : "#ffffff",
-          plot_bgcolor: isDark ? "#0d0f14" : "#ffffff",
+          paper_bgcolor: isDark ? "#0b0c0e" : "#ffffff",
+          plot_bgcolor: isDark ? "#0b0c0e" : "#ffffff",
           xaxis: {
             ...graphDiv.layout?.xaxis,
-            gridcolor: isDark ? "#1c2030" : "#e2e8f0",
+            gridcolor: isDark ? "#181b22" : "#e7e7e2",
+            linecolor: isDark ? "#2d323e" : "#b8b8ae",
             tickfont: {
               ...graphDiv.layout?.xaxis?.tickfont,
-              color: isDark ? "#8892a4" : "#475569",
+              color: isDark ? "#9ca3af" : "#374151",
             },
           },
           yaxis: {
             ...graphDiv.layout?.yaxis,
-            gridcolor: isDark ? "#1c2030" : "#e2e8f0",
+            gridcolor: isDark ? "#181b22" : "#e7e7e2",
+            linecolor: isDark ? "#2d323e" : "#b8b8ae",
             tickfont: {
               ...graphDiv.layout?.yaxis?.tickfont,
-              color: isDark ? "#8892a4" : "#475569",
+              color: isDark ? "#9ca3af" : "#374151",
             },
           },
         };
@@ -479,13 +656,13 @@ export function AppShell() {
       canvas.width = width;
       canvas.height = height;
 
-      ctx.fillStyle = isDark ? "#0d0f14" : "#ffffff";
+      ctx.fillStyle = isDark ? "#0b0c0e" : "#ffffff";
       ctx.fillRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
 
-      const fontSize = Math.max(12, Math.round(width * 0.018));
-      ctx.font = `bold ${fontSize}px Inter, sans-serif`;
-      ctx.fillStyle = isDark ? "rgba(255, 255, 255, 0.5)" : "rgba(15, 23, 42, 0.5)";
+      const fontSize = Math.max(12, Math.round(width * 0.016));
+      ctx.font = `600 ${fontSize}px "JetBrains Mono", monospace`;
+      ctx.fillStyle = isDark ? "rgba(243, 244, 246, 0.55)" : "rgba(17, 24, 39, 0.55)";
       ctx.textAlign = "right";
       ctx.textBaseline = "bottom";
 
@@ -493,7 +670,7 @@ export function AppShell() {
 
       let watermarkString = "FreqRes";
       if (options.includeSourceCredit && reviewers.length > 0) {
-        watermarkString += ` • Measured by ${reviewers.join(", ")}`;
+        watermarkString += ` · Measured by ${reviewers.join(", ")}`;
       }
 
       ctx.fillText(watermarkString, width - 20, height - 16);
@@ -542,17 +719,23 @@ export function AppShell() {
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
 
       if (e.ctrlKey || e.metaKey) {
-        if (e.key === "z") {
+        if (e.key === "z" || e.key === "Z") {
           e.preventDefault();
           if (e.shiftKey) redo();
           else undo();
-        } else if (e.key === "y") {
+        } else if (e.key === "y" || e.key === "Y") {
           e.preventDefault();
           redo();
-        } else if (e.key === "s") {
+        } else if (e.key === "s" || e.key === "S") {
           e.preventDefault();
           handleShareWorkspace();
         }
@@ -565,6 +748,9 @@ export function AppShell() {
             next[index] = { ...next[index], visible: !next[index].visible };
             return next;
           });
+        } else if (e.key === "?") {
+          e.preventDefault();
+          setShowOnboarding((prev) => !prev);
         } else if (e.key === "Escape") {
           setIsSidebarOpen(false);
         }
@@ -638,7 +824,6 @@ export function AppShell() {
       const target = tracesRef.current.find((t) => t.id === id);
       if (!target) return;
 
-      // Only fetch over the network if rawChannels wasn't already cached on the trace
       let fetchedChannels = target.rawChannels;
       if (
         !fetchedChannels &&
@@ -780,7 +965,6 @@ export function AppShell() {
     });
   }, []);
 
-  // Only update React state when the set of matched parameter bands actually changes
   const handleChartHover = useCallback((hz: number | null) => {
     hoveredHzRef.current = hz;
     if (!isInteractiveGraphRef.current || hz === null) {
@@ -920,17 +1104,22 @@ export function AppShell() {
     });
   }, []);
 
+  const visibleTraceCount = useMemo(
+    () => traces.filter((t) => t.visible).length,
+    [traces]
+  );
+
   if (!hasHydrated || fetchingShared) {
     return (
       <div className="flex h-screen w-full bg-[var(--bg-base)]">
-        <div className="w-80 h-full border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 flex flex-col gap-4 animate-pulse">
-          <div className="h-8 bg-[var(--bg-raised)] rounded w-3/4"></div>
-          <div className="h-20 bg-[var(--bg-raised)] rounded w-full"></div>
-          <div className="h-40 bg-[var(--bg-raised)] rounded w-full mt-4"></div>
+        <div className="hidden md:flex w-80 h-full border-r border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4 flex-col gap-4 animate-pulse">
+          <div className="h-8 bg-[var(--bg-raised)] rounded w-3/4" />
+          <div className="h-20 bg-[var(--bg-raised)] rounded w-full" />
+          <div className="h-40 bg-[var(--bg-raised)] rounded w-full mt-2" />
         </div>
         <div className="flex-1 p-6 flex flex-col gap-4 animate-pulse">
-          <div className="h-10 bg-[var(--bg-raised)] rounded w-full"></div>
-          <div className="flex-1 bg-[var(--bg-raised)] rounded w-full"></div>
+          <div className="h-10 bg-[var(--bg-raised)] rounded w-full" />
+          <div className="flex-1 bg-[var(--bg-raised)] rounded w-full" />
         </div>
       </div>
     );
@@ -938,15 +1127,19 @@ export function AppShell() {
 
   if (linkExpired) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen w-full bg-[var(--bg-base)] text-[var(--text-primary)]">
-        <div className="p-8 panel max-w-md text-center flex flex-col items-center gap-4">
-          <h1 className="text-2xl font-bold">Link Expired</h1>
-          <p className="text-[var(--text-secondary)]">
-            This shared workspace link has expired. Shared links are automatically purged after 3
-            days to free up space.
+      <div className="flex flex-col items-center justify-center h-screen w-full bg-[var(--bg-base)] text-[var(--text-primary)] p-4">
+        <div className="p-6 panel max-w-md text-center flex flex-col items-center gap-3">
+          <h1 className="text-lg font-semibold">Shared Workspace Expired</h1>
+          <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+            Shared shortlinks automatically expire after 3 days. You can start a new comparison or
+            load a sample workspace directly.
           </p>
-          <button onClick={() => setLinkExpired(false)} className="btn-primary mt-2">
-            Create a New Comparison
+          <button
+            type="button"
+            onClick={() => setLinkExpired(false)}
+            className="btn-primary mt-2"
+          >
+            Open New Workspace
           </button>
         </div>
       </div>
@@ -955,6 +1148,15 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen w-full bg-[var(--bg-base)] text-[var(--text-primary)]">
+      {/* Mobile Sidebar Backdrop Scrim */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 md:hidden"
+          onClick={handleCloseSidebar}
+          aria-hidden="true"
+        />
+      )}
+
       <ErrorBoundary>
         <Sidebar
           traces={traces}
@@ -987,8 +1189,10 @@ export function AppShell() {
           onLoadWorkspace={handleLoadWorkspace}
           onDeleteWorkspace={handleDeleteWorkspace}
           onToggleChannelMode={handleToggleChannelMode}
+          onOpenQuickStart={handleOpenQuickStart}
         />
       </ErrorBoundary>
+
       <main className="flex-1 flex flex-col relative h-full bg-[var(--bg-base)] overflow-hidden">
         <Header
           selectedTarget={selectedTarget}
@@ -998,12 +1202,14 @@ export function AppShell() {
           isInteractiveGraph={isInteractiveGraph}
           onToggleInteractiveGraph={handleToggleInteractiveGraph}
           onOpenSidebar={handleOpenSidebar}
+          onOpenQuickStart={handleOpenQuickStart}
           traceCount={traces.length}
+          visibleTraceCount={visibleTraceCount}
         />
 
-        <div className="flex-1 flex flex-col relative overflow-y-auto overflow-x-hidden">
+        <div className="flex-1 flex flex-col relative overflow-y-auto overflow-x-hidden custom-scrollbar">
           <div
-            className="flex-1 min-h-[60vh] shrink-0"
+            className="flex-1 min-h-[58vh] shrink-0"
             onMouseLeave={() => handleChartHover(null)}
             onPointerDownCapture={() => {
               if (isInteractiveGraph && hoveredHzRef.current !== null) {
@@ -1020,11 +1226,13 @@ export function AppShell() {
                 isCompensated={isCompensated}
                 onChartHover={handleChartHover}
                 theme={theme}
+                onLoadSample={handleLoadSample}
+                onFocusSearch={handleFocusSearch}
               />
             </ErrorBoundary>
           </div>
 
-          <div className="shrink-0 px-4 md:px-6 pb-6">
+          <div className="shrink-0 px-3 md:px-5 pb-5">
             <DifferenceTable
               traces={traces}
               theme={theme}
@@ -1034,8 +1242,8 @@ export function AppShell() {
           </div>
         </div>
 
-        {/* Floating Toast Notification */}
-        <div className="absolute bottom-4 left-4 right-4 md:bottom-6 md:left-auto md:right-6 z-40 md:max-w-[320px]">
+        {/* Floating Status Toast */}
+        <div className="absolute bottom-4 left-4 right-4 md:bottom-5 md:left-auto md:right-5 z-40 md:max-w-[320px]">
           <ImportStatus
             result={lastResult}
             loading={loading}
@@ -1054,7 +1262,12 @@ export function AppShell() {
         isExporting={isExportingImage}
       />
 
-      {showOnboarding && <OnboardingModal onClose={handleCloseOnboarding} />}
+      {showOnboarding && (
+        <OnboardingModal
+          onClose={handleCloseOnboarding}
+          onLoadSample={handleLoadSample}
+        />
+      )}
     </div>
   );
 }
